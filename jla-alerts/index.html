@@ -1,0 +1,319 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="x-ua-compatible" content="ie=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>JLA - Donation Alert</title>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500&display=swap" rel="stylesheet">
+    <style type="text/css">
+        body {
+            color: #fff;
+            font-family: 'Montserrat', 'Arial', sans-serif;
+            font-size: 16px;
+        }
+        #basic {
+            display: none;
+            position: relative;
+            height: 200px;
+            width: 0;
+            background-color: #43464b;
+            text-align: center;
+            overflow: hidden;
+        }
+        #basic .table {
+            width: 100%;
+            height: 100%;
+            vertical-align: middle;
+        }
+        #basic .participantBlock {
+            padding-left: 10px;
+            display: inline-block;
+        }
+        #basic .content {
+            display: inline-block;
+            height: 100%;
+        }
+        #basic .animation {
+            height: 0;
+        }
+        .amount {
+            width: 120px;
+            height: 70px;
+            position: relative;
+            font-size: 50px;
+            margin: auto;
+        }
+        .amountChar {
+            position: absolute;
+        }
+        .message {
+            max-height: 110px;
+        }
+    </style>
+</head>
+<body>
+    <div id="basic">
+        <table class="table"><tr>
+            <td width="180px"><div class="participantBlock">
+                <img src="" class="photo" width="120" height="120" />
+                <div class="participant"></div>
+            </div></td>
+            <td width="420px"><div class="content">
+                <table height="100%" width="100%" cellpadding='0' cellspacing='0' padding='0'>
+                    <tr><td><div class="amount"></div></td></tr>
+                    <tr><td><div class="message"></div></td></tr>
+                </table>
+            </div></td>
+            <td width="200px"><img src="" class="animation" width="200" height="168" /></td>
+        </tr></table>
+    </div>
+    <img id="thanks" width="649" height="365" />
+    <img id="forthekids" width="920" height="540" />
+    <script type="text/javascript">
+    const teamID = 59885;
+    const debug = typeof window.obsstudio == 'undefined';
+    const animations = ['confetti.gif', 'fireworks-blue.gif', 'fireworks-color.gif', 'hearts.gif', 'wings.gif'];
+    const shortSounds = ['bomberman.mp3', 'castlevania.mp3', 'contra.mp3', 'donkey-kong-country.mp3', 'duck-hunt.mp3', 'final-fantasy.mp3', 'kirbys-epic-yarn.mp3', 'legend-of-zelda.mp3', 'mario-galaxy.mp3', 'mario-kart-wii.mp3', 'megaman.mp3', 'megaman2.mp3', 'megaman3.mp3', 'megamanx.mp3', 'metroid-prime.mp3', 'pokemon.mp3', 'secret-of-mana.mp3', 'smb2.mp3', 'sonic-mania.mp3', 'sonic-the-hedgehog.mp3', 'streets-of-rage-2.mp3', 'super-mario-3d-world.mp3', 'super-mario-bros.mp3', 'super-mario-world.mp3'];
+    const longSounds = ['chrono-trigger.mp3', 'link-to-the-past.mp3'];
+    const minAmount = 0; // minimum donation amount for anything to happen
+    const minAmountSound = 0; // minimum donation amount to play any sound (-1 to disable)
+    const minAmountLongSound = 50; // minimum donation amount to play a long sound
+
+    let participants = [];
+    let completed = [];
+    let alertStack = [];
+    let amountIntervals = [];
+    let lock = false;
+
+    function findParticipant(id) {
+        for (let i in participants) {
+            if (participants[i].participantID == id) {
+                return participants[i];
+            }
+        }
+        // try updating participants, maybe they're a new signup
+        $.ajax({
+            url: "https://www.extra-life.org/api/1.3/teams/" + teamID + "/participants?limit=80&offset=0&orderBy=sumDonations%20DESC%2C%20displayName%20ASC&_=" + new Date().getTime(),
+            dataType: "json",
+            async: false,
+            success: function(response) {
+                participants = response;
+                if (debug) {
+                    console.log('participants');
+                    console.log(participants);
+                }
+            }
+        });
+        for (let i in participants) {
+            if (participants[i].participantID == id) {
+                return participants[i];
+            }
+        }
+        return undefined;
+    }
+
+    function renderDonation(donation) {
+        if (donation.amount < minAmount) {
+            return;
+        }
+        $('.amount').html('');
+        $('#thanks').hide();
+        $('#forthekids').hide();
+        let participant = findParticipant(donation.participantID);
+        if (typeof participant == 'undefined') {
+            updateParticipants(donation);
+            return;
+        }
+        $('.participant').hide();
+        $('.photo').hide();
+        $('#basic .animation').css('height', '0').hide();
+        if (typeof participant == 'object') {
+            $('.participant').html(participant.displayName);
+            $('.photo').attr('src', '' + participant.avatarImageURL);
+        }
+        $('.message').html('');
+        let message = '';
+        if (typeof donation.displayName != 'string' || donation.displayName.trim().length < 1) {
+            donation.displayName = "Anonymous";
+        }
+        if (typeof donation.displayName == 'string' && donation.displayName.trim().length > 0 && donation.displayName !== "Anonymous") {
+            message = 'From: ' + donation.displayName;
+        }
+        if (typeof donation.message == 'string' && donation.message.trim().length > 0) {
+            message = message + '<br>' + donation.message;
+        }
+        $('#basic .message').hide().html(message);
+        $('#basic').show().animate({width: '800px'}, 500, function() {
+            $('.participant').show();
+            $('.photo').show();
+            $('#basic .message').show();
+            $('#basic .animation').attr('src', 'images/' + animations[Math.floor(Math.random() * animations.length)]);
+            $('#basic .animation').show().animate({height: '168px'}, 500);
+            amountIntervals = partyAmount(donation.amount);
+            if (minAmountSound >= 0 && minAmountSound <= donation.amount) {
+                let filename = shortSounds[Math.floor(Math.random() * shortSounds.length)];
+                if (donation.amount >= minAmountLongSound) {
+                    filename = longSounds[Math.floor(Math.random() * longSounds.length)];
+                }
+                playSound(filename);
+            }
+        });
+
+        let timeout = 8000;
+        if (donation.amount >= minAmountSound && minAmountSound >= 0) {
+            timeout = 12000;
+        }
+        if (donation.amount >= minAmountLongSound) {
+            timeout = 20000;
+        }
+        setTimeout(function() { hideBasic(donation.amount); }, timeout, donation.amount);
+    }
+
+    function partyAmount(arg_amount) {
+        let amount = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(arg_amount);
+        let intervals = [];
+        let l = 0;
+        $('#basic .amount').html('').show();
+        for (let i = 0; i < amount.length; i++) {
+            let char = amount.charAt(i);
+            setTimeout(function(char, i, l) {
+                var el = $('<span/>', {
+                    'class': 'amountChar',
+                }).appendTo("#basic .amount");
+                el.css('left', l + 'px');
+                el.html(char);
+                intervals.push(setInterval(function(el) {
+                    el.animate({top: '10px'}, 1000, function() {
+                        el.animate({top: '-10px'}, 1000);
+                    });
+                }, 2000, el));
+            }, i * 200, char, i, l);
+            if (char == '$') {
+                l += 32;
+            } else if (char == '.' || char == ',') {
+                l += 8;
+            } else if (char == '1') {
+                l += 20;
+            } else {
+                l += 30;
+            }
+        }
+        $('#basic .amount').css('width', (l) + 'px');
+    }
+
+    function playSound(filename) {
+        let sound = document.createElement('audio');
+        sound.src = "sounds/" + filename;
+        if (debug) {
+            console.log('playing sound ' + filename);
+        }
+        sound.play();
+    }
+
+    function hideBasic(amount) {
+        $('#basic .amount').hide(100);
+        $('#basic .message').hide(100);
+        $('#basic .animation').animate({height: 0}, 500, function() {
+            $('#basic .animation').hide();
+            $('.participant').hide();
+            $('.photo').hide();
+            $('#basic').animate({width: 0}, 500, function() {
+                $('#basic').hide();
+                if (amount >= 5) {
+                    $('#thanks').attr('src', 'images/big-thank-you.gif').show();
+                    setTimeout(function() {
+                        $('#thanks').hide().attr('src', '');
+                    }, 7500);
+                }
+            });
+        });
+        if (typeof amountIntervals !== 'undefined') {
+            for (let i = 0; i < amountIntervals.length; i++) {
+                clearInterval(amountInterval[i]);
+            }
+        }
+    }
+
+    function checkStack() {
+        if (lock) {
+            if (debug) {
+                console.log('locked');
+            }
+            return;
+        }
+        lock = true;
+        if (alertStack.length > 0) {
+            let donation = alertStack.shift();
+            if (debug) {
+                console.log('rendering');
+                console.log(donation);
+            }
+            if (donation.amount >= minAmountLongSound) {
+                $('#forthekids').attr('src', 'images/big-for-the-kids.gif').show();
+                setTimeout(function() {
+                    $('#forthekids').hide().attr('src', '');
+                    renderDonation(donation);
+                }, 4000);
+            } else {
+                renderDonation(donation);
+            }
+        }
+        lock = false;
+    }
+
+    function getDonations(first = 0) {
+        $.ajax({
+            url: "https://www.extra-life.org/api/1.3/teams/" + teamID + "/donations?limit=20&offset=0&_=" + new Date().getTime(),
+            dataType: "json",
+            success: function(response) {
+                if (debug) {
+                    console.log('donations');
+                    console.log(response);
+                }
+                for (let i in response) {
+                    if (first) {
+                        completed.push(response[i].donationID);
+                    } else if (completed.indexOf(response[i].donationID) < 0) {
+                        alertStack.push(response[i]);
+                        completed.push(response[i].donationID);
+                    }
+                }
+                checkStack();
+            }
+        });
+    }
+
+    function getParticipants() {
+        $.ajax({
+            url: "https://www.extra-life.org/api/1.3/teams/" + teamID + "/participants?limit=80&offset=0&orderBy=sumDonations%20DESC%2C%20displayName%20ASC&_=" + new Date().getTime(),
+            dataType: "json",
+            success: function(response) {
+                participants = response;
+                if (debug) {
+                    console.log('participants');
+                    console.log(participants);
+                }
+                if (!debug) {
+                    getDonations(1);
+                }
+                setInterval(function() {
+                    getDonations();
+                }, 30000);
+            }
+        });
+    }
+
+    $(document).ready(function() {
+        $('#thanks').hide();
+        $('#forthekids').hide();
+        if (debug) {
+            $('body').css('backgroundColor', 'blue');
+        }
+        getParticipants();
+        checkStack();
+    });
+    </script>
+</body>
+</html>

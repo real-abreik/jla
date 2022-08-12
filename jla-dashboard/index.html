@@ -1,0 +1,336 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="x-ua-compatible" content="ie=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>JLA - Donation Dashboard</title>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500&display=swap" rel="stylesheet">
+    <style type="text/css">
+        body {
+            color: #000;
+            font-family: 'Montserrat', 'Arial', sans-serif;
+            font-size: 16px;
+            text-align: center;
+        }
+        table {
+            width: 100%;
+        }
+        #avatar {
+            width: 150px;
+            height: 150px;
+            background-size: 150px;
+        }
+        #teamName {
+            font-size: 40px;
+            text-align: left;
+        }
+        #clearButton {
+            position: absolute;
+            top: 0;
+            right: 0;
+            background-color: lightgray;
+            border: 2px solid gray;
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 8px;
+            margin: 6px;
+        }
+        .progressBar {
+            width: 100%;
+            position: relative;
+            background: #1d4c6c;
+            overflow: hidden;
+            height: 40px;
+            border-radius: 300px;
+            text-align: left;
+        }
+        #raisedNum, #todayNum, #goalNum {
+            font-size: 24px;
+        }
+        #progressBarFilled, #progressBarToday {
+            background-image: linear-gradient(-45deg,rgba(255,255,255,0.17) 25%,transparent 25%,transparent 50%,rgba(255,255,255,0.17) 50%,rgba(255,255,255,0.17) 75%,transparent 75%);
+            background-size: 20px 20px;
+            overflow: hidden;
+            animation: thermo-progress-horz 1s 1 forwards ease-out;
+            height: 100%;
+            display: inline-block;
+            text-align: center;
+        }
+        #progressBarFilled {
+            background-color: #26c2eb;
+        }
+        #progressBarToday {
+            background-color: orange;
+            width: 0;
+        }
+        #progressBarPercent, #progressBarTodayPercent {
+            color: #fff;
+            font-size: 33px;
+        }
+        #donations {
+            text-align: left;
+        }
+        #donations tr:nth-child(even) {
+            background-color: lightskyblue;
+        }
+        #donationTemplate {
+            display: none;
+        }
+        #donations .participantAvi {
+            width: 150px;
+            height: 150px;
+            background-size: 150px;
+            justify: center;
+            margin: auto;
+        }
+        .streamMessage {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+
+    <table>
+    <tr>
+        <td><div id="avatar"></div></td>
+        <td><div id="teamName"></div></td>
+    </tr>
+    </table>
+    <div id="clearButton" onclick="clearTable()">Reset List</div>
+    <table>
+        <tr>
+            <td><div class="raised">Raised: <span id="raisedNum"></span></div></td>
+            <td><div class="raisedToday">Raised Today: <span id="todayNum"></span></div></td>
+            <td><div class="goal">Goal: <span id="goalNum"></span></div></td>
+        </tr>
+        <tr>
+            <td colspan="3"><div class="progressBar">
+                <div id="progressBarFilled"><span id="progressBarPercent"></span></div><div id="progressBarToday"><span id="progressBarTodayPercent"></span></div>
+            </div></td>
+        </tr>
+    </table>
+
+    <table id="donations" border="0" cellpadding="0" cellspacing="0">
+        <tr id="donationTemplate">
+            <td style="text-align: center;">
+                <div class="participantAvi"></div>
+                <div class="participantName"></div>
+            </td>
+            <td>
+                From: <span class="donorName"></span><br />
+                <b>Amount: <span class="amount"></span></b><br />
+                Time: <span class="time"></span><br />
+                Message: <span class="message"></span><br />
+                <span class="progressMessage">Progress: <span class="raised"></span> out of <span class="goal"></span></span><br />
+                <span class="streamMessage"><span class="streamingChannel"></span> on <span class="streamingPlatform"></span></span>
+            </td>
+        </tr>
+    </table>
+
+    <script type="text/javascript">
+    const teamID = 59885;
+    const startDate = new Date().setHours(0, 0, 0, 0);
+    //const startDate = '2022-08-01';
+    const defaultParticipant = {
+        avatarImageURL: 'https://assets.donordrive.com/clients/extralife/img/avatar-constituent-default.gif',
+        displayName: 'Unknown',
+        fundraisingGoal: 0,
+        sumDonations: 0,
+    };
+    const defaultDonation = {
+        amount: 0,
+        avatarImageURL: 'https://assets.donordrive.com/clients/extralife/img/avatar-constituent-default.gif',
+        createdDateUTC: '1970-01-01T00:00.000Z',
+        displayName: 'Anonymous',
+        message: '',
+    }
+
+    let teamInfo = [];
+    let initialSum = 0;
+    let totalRaised = 0;
+    let initialGoal = 0;
+    let raisedToday = 0;
+    let processedDonations = [];
+    let participants = [];
+    let allowBlink = false;
+
+    function formatDollar(num) {
+        return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(num);
+    }
+
+    function findParticipant(id) {
+        for (let i in participants) {
+            if (participants[i].participantID == id) {
+                return participants[i];
+            }
+        }
+        // try updating participants, maybe they're a new signup
+        $.ajax({
+            url: "https://www.extra-life.org/api/1.3/teams/" + teamID + "/participants?limit=80&offset=0&orderBy=sumDonations%20DESC%2C%20displayName%20ASC&_=" + new Date().getTime(),
+            dataType: "json",
+            async: false,
+            success: function(response) {
+                participants = response;
+            }
+        });
+        for (let i in participants) {
+            if (participants[i].participantID == id) {
+                return participants[i];
+            }
+        }
+        return undefined;
+    }
+
+    function newDonationBlink() {
+        if (!allowBlink) {
+            return;
+        }
+        $('body').css('backgroundColor', 'yellow');
+        setTimeout(function () {
+            $('body').css('backgroundColor', '#fff');
+        }, 200);
+        setTimeout(function () {
+            $('body').css('backgroundColor', 'yellow');
+        }, 400);
+        setTimeout(function () {
+            $('body').css('backgroundColor', '#fff');
+        }, 600);
+        setTimeout(function () {
+            $('body').css('backgroundColor', 'yellow');
+        }, 800);
+        setTimeout(function () {
+            $('body').css('backgroundColor', '#fff');
+        }, 1000);
+    }
+
+    function clearTable() {
+        let template = $('#donationTemplate');
+        $('#donations').html(template);
+    }
+
+    function getDonations(first = false) {
+        let limit = first ? 50 : 10;
+        $.ajax({
+            url: "https://www.extra-life.org/api/1.3/teams/" + teamID + "/donations?limit=" + limit + "&offset=0&_=" + new Date().getTime(),
+            cache: false,
+            dataType: "json",
+            success: function(response) {
+                response.sort(function(a, b) {
+                    return new Date(a.createdDateUTC) - new Date(b.createdDateUTC);
+                });
+                for (let i in response) {
+                    let donation = response[i];
+                    if (processedDonations.indexOf(donation.donationID) >= 0 || donation.amount <= 0) {
+                        continue;
+                    }
+                    processedDonations.push(donation.donationID);
+                    for (let j in defaultDonation) {
+                        if (typeof donation[j] == 'undefined') {
+                            donation[j] = defaultDonation[j];
+                        }
+                    }
+                    // skip any donation from before today
+                    if (new Date(donation.createdDateUTC) < new Date(startDate)) {
+                        continue;
+                    }
+                    console.log(donation);
+                    newDonationBlink();
+                    if (!first) {
+                        totalRaised += donation.amount;
+                    } else {
+                        initialSum -= donation.amount;
+                    }
+                    raisedToday += donation.amount;
+                    let participant = findParticipant(donation.participantID);
+                    if (typeof participant == 'undefined') {
+                        participant = defaultParticipant;
+                    }
+                    for (let j in defaultParticipant) {
+                        if (typeof participant[j] == 'undefined') {
+                            participant[j] = defaultParticipant[j];
+                        }
+                    }
+                    participant.sumDonations += donation.amount;
+                    console.log(participant);
+                    let initialPercent = Math.floor((initialSum / initialGoal) * 100);
+                    let totalPercent = Math.floor((totalRaised / initialGoal) * 100);
+                    let todayPercent = Math.floor((raisedToday / initialGoal) * 100);
+                    if ((initialPercent + todayPercent) == (totalPercent - 1)) {
+                        todayPercent++;
+                    }
+
+                    $('#progressBarFilled').css('width', initialPercent + '%');
+                    $('#progressBarPercent').html(initialPercent + '%');
+                    $('#progressBarToday').css('width', todayPercent + '%');
+                    $('#progressBarTodayPercent').html(todayPercent + '%');
+                    $('#raisedNum').html(formatDollar(totalRaised));
+                    $('#todayNum').html(formatDollar(raisedToday));
+                    let row = $('#donationTemplate').clone();
+                    row.attr('id', donation.donationID);
+                    row.find('.participantAvi').css('backgroundImage', 'url(' + participant.avatarImageURL + ')');
+                    row.find('.participantName').html(participant.displayName);
+                    row.find('.donorName').html(donation.displayName);
+                    row.find('.amount').html(formatDollar(donation.amount));
+                    row.find('.time').html(new Date(donation.createdDateUTC).toLocaleString('en-US'));
+                    row.find('.message').html(donation.message);
+                    row.find('.raised').html(formatDollar(participant.sumDonations));
+                    row.find('.goal').html(formatDollar(participant.fundraisingGoal));
+                    if (typeof participant.streamingChannel == 'string' && typeof participant.streamingPlatform == 'string') {
+                        row.find('.streamingChannel').html(participant.streamingChannel);
+                        row.find('.streamingPlatform').html(participant.streamingPlatform);
+                        row.find('.streamMessage').css('display', 'block');
+                    }
+                    if (participant.sumDonations >= participant.fundraisingGoal && (participant.sumDonations - donation.amount) < participant.fundraisingGoal) {
+                        row.find('.progressMessage').css('backgroundColor', 'orange');
+                    }
+                    $('#donations > tbody:first-child').prepend(row);
+                }
+            }
+        });
+    }
+
+    function getParticipants() {
+        $.ajax({
+            url: "https://www.extra-life.org/api/1.3/teams/" + teamID + "/participants?limit=50&offset=0&orderBy=sumDonations%20DESC%2C%20displayName%20ASC&_=" + new Date().getTime(),
+            cache: false,
+            dataType: "json",
+            success: function(response) {
+                participants = response;
+                getDonations(true);
+                setInterval(function() {
+                    allowBlink = true;
+                    getDonations();
+                }, 30000);
+            }
+        });
+    }
+
+    function getTeamInfo() {
+        $.ajax({
+            url: "https://www.extra-life.org/api/1.3/teams/" + teamID,
+            dataType: "json",
+            success: function(response) {
+                teamInfo = response;
+                console.log(teamInfo);
+                initialSum = totalRaised = response.sumDonations;
+                initialGoal = response.fundraisingGoal;
+                $('#avatar').css('backgroundImage', 'url(' + response.avatarImageURL + ')');
+                $('#teamName').html(response.name);
+                $('#raisedNum').html(formatDollar(initialSum));
+                $('#todayNum').html('$0');
+                $('#goalNum').html(formatDollar(response.fundraisingGoal));
+                $('#progressBarFilled').css('width', 0);
+                $('#progressBarPercent').html('');
+                getParticipants();
+            }
+        });
+    }
+
+    $(document).ready(function() {
+        getTeamInfo();
+    });
+    </script>
+</body>
+</html>

@@ -1,0 +1,7 @@
+jla-alerts.zip
+*.swp
+*.swo
+.DS_Store
+.vs_code
+.vscode
+.idea
