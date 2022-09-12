@@ -132,8 +132,8 @@
 
     <script type="text/javascript">
     const teamID = 59885;
-    const startDate = new Date().setHours(0, 0, 0, 0);
-    //const startDate = '2022-08-01';
+    //const startDate = new Date().setHours(0, 0, 0, 0);
+    const startDate = '2022-01-01';
     const defaultParticipant = {
         avatarImageURL: 'https://assets.donordrive.com/clients/extralife/img/avatar-constituent-default.gif',
         displayName: 'Unknown',
@@ -211,10 +211,11 @@
         $('#donations').html(template);
     }
 
-    function getDonations(first = false) {
+    function getDonations(first = false, offset = 0) {
         let limit = first ? 50 : 10;
+        let didSkip = false;
         $.ajax({
-            url: "https://www.extra-life.org/api/1.3/teams/" + teamID + "/donations?limit=" + limit + "&offset=0&_=" + new Date().getTime(),
+            url: "https://www.extra-life.org/api/1.3/teams/" + teamID + "/donations?limit=" + limit + "&offset=" + offset + "&_=" + new Date().getTime(),
             cache: false,
             dataType: "json",
             success: function(response) {
@@ -234,6 +235,7 @@
                     }
                     // skip any donation from before today
                     if (new Date(donation.createdDateUTC) < new Date(startDate)) {
+                        didSkip = true;
                         continue;
                     }
                     console.log(donation);
@@ -290,6 +292,9 @@
                 }
             }
         });
+        if (first && !didSkip && offset < 1000) {
+            getDonations(first, offset + limit);
+        }
     }
 
     function getParticipants() {
