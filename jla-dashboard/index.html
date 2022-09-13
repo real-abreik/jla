@@ -325,7 +325,6 @@
                         goal: participant.fundraisingGoal,
                         streamingChannel: participant.streamingChannel,
                         streamingPlatform: participant.streamingPlatform,
-                        orange: (participant.sumDonations >= participant.fundraisingGoal && (participant.sumDonations - donation.amount) < participant.fundraisingGoal)
                     });
                     if (new Date(donation.createdDateUTC) < new Date(startTime)) {
                         continue;
@@ -405,7 +404,7 @@
                 row.find('.streamingPlatform').html(donationTable[i].streamingPlatform);
                 row.find('.streamMessage').css('display', 'block');
             }
-            if (donationTable[i].orange) {
+            if (raised >= donationTable[i].goal && (raised - donationTable[i].amount) < donationTable[i].goal) {
                 row.find('.progressMessage').css('backgroundColor', 'orange');
             }
             $('#donations > tbody:first-child').append(row);
