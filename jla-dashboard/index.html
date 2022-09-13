@@ -27,10 +27,32 @@
             font-size: 40px;
             text-align: left;
         }
-        #clearButton {
+        #exportButton {
             position: absolute;
             top: 0;
             right: 0;
+            background-color: lightgray;
+            border: 2px solid gray;
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 8px;
+            margin: 6px;
+        }
+        #toggleButton {
+            position: absolute;
+            top: 0;
+            right: 228px;
+            background-color: lightgray;
+            border: 2px solid gray;
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 8px;
+            margin: 6px;
+        }
+        #clearButton {
+            position: absolute;
+            top: 0;
+            right: 120px;
             background-color: lightgray;
             border: 2px solid gray;
             cursor: pointer;
@@ -99,7 +121,9 @@
         <td><div id="teamName"></div></td>
     </tr>
     </table>
-    <div id="clearButton" onclick="clearTable()">Reset List</div>
+    <div id="exportButton" onclick="downloadCsv()">Export CSV</div>
+    <div id="toggleButton" onclick="toggleShowAll()">Show All</div>
+    <div id="clearButton" onclick="resetToday()">Reset List</div>
     <table>
         <tr>
             <td><div class="raised">Raised: <span id="raisedNum"></span></div></td>
@@ -132,8 +156,7 @@
 
     <script type="text/javascript">
     const teamID = 59885;
-    //const startDate = new Date().setHours(0, 0, 0, 0);
-    const startDate = '2022-01-01';
+    let startTime = new Date().setHours(0, 0, 0, 0);
     const defaultParticipant = {
         avatarImageURL: 'https://assets.donordrive.com/clients/extralife/img/avatar-constituent-default.gif',
         displayName: 'Unknown',
@@ -156,6 +179,8 @@
     let processedDonations = [];
     let participants = [];
     let allowBlink = false;
+    let donationTable = [];
+    let showAll = false;
 
     function formatDollar(num) {
         return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(num);
@@ -184,6 +209,16 @@
         return undefined;
     }
 
+    function increaseSumDonations(id, amount) {
+        for (let i in participants) {
+            if (participants[i].participantID == id) {
+                participants[i].sumDonations += amount;
+                return true;
+            }
+        }
+        return false;
+    }
+
     function newDonationBlink() {
         if (!allowBlink) {
             return;
@@ -208,17 +243,24 @@
 
     function clearTable() {
         let template = $('#donationTemplate');
-        $('#donations').html(template);
+        $('#donations > tbody').html(template);
     }
 
     function getDonations(first = false, offset = 0) {
         let limit = first ? 50 : 10;
-        let didSkip = false;
         $.ajax({
             url: "https://www.extra-life.org/api/1.3/teams/" + teamID + "/donations?limit=" + limit + "&offset=" + offset + "&_=" + new Date().getTime(),
             cache: false,
             dataType: "json",
-            success: function(response) {
+            beforeSend: function(jqXHR, settings) {
+                jqXHR.vars = {
+                    teamID: teamID,
+                    limit: limit,
+                    offset: offset,
+                    first: first
+                };
+            },
+            success: function(response, textStatus, jqXHR) {
                 response.sort(function(a, b) {
                     return new Date(a.createdDateUTC) - new Date(b.createdDateUTC);
                 });
@@ -233,15 +275,10 @@
                             donation[j] = defaultDonation[j];
                         }
                     }
-                    // skip any donation from before today
-                    if (new Date(donation.createdDateUTC) < new Date(startDate)) {
-                        didSkip = true;
-                        continue;
-                    }
                     console.log(donation);
-                    newDonationBlink();
                     if (!first) {
                         totalRaised += donation.amount;
+                        newDonationBlink();
                     } else {
                         initialSum -= donation.amount;
                     }
@@ -255,8 +292,29 @@
                             participant[j] = defaultParticipant[j];
                         }
                     }
-                    participant.sumDonations += donation.amount;
+                    if (!first) {
+                        participant.sumDonations += donation.amount;
+                        increaseSumDonations(donation.participantID, amount);
+                    }
                     console.log(participant);
+                    donationTable.push({
+                        id: donation.donationID,
+                        participantAvi: participant.avatarImageURL,
+                        participantName: participant.displayName,
+                        participantId: participant.participantID,
+                        donorName: donation.displayName,
+                        amount: donation.amount,
+                        time: donation.createdDateUTC,
+                        message: donation.message,
+                        raised: participant.sumDonations,
+                        goal: participant.fundraisingGoal,
+                        streamingChannel: participant.streamingChannel,
+                        streamingPlatform: participant.streamingPlatform,
+                        orange: (participant.sumDonations >= participant.fundraisingGoal && (participant.sumDonations - donation.amount) < participant.fundraisingGoal)
+                    });
+                    if (new Date(donation.createdDateUTC) < new Date(startTime)) {
+                        continue;
+                    }
                     let initialPercent = Math.floor((initialSum / initialGoal) * 100);
                     let totalPercent = Math.floor((totalRaised / initialGoal) * 100);
                     let todayPercent = Math.floor((raisedToday / initialGoal) * 100);
@@ -290,11 +348,87 @@
                     }
                     $('#donations > tbody:first-child').prepend(row);
                 }
+                if (jqXHR.vars.first && response.length == jqXHR.vars.limit && jqXHR.vars.offset < 1000) {
+                    getDonations(first, offset + limit);
+                }
+                if (jqXHR.vars.first && response.length < jqXHR.vars.limit) {
+                    rebuildTable();
+                }
             }
         });
-        if (first && !didSkip && offset < 1000) {
-            getDonations(first, offset + limit);
+    }
+
+    function rebuildTable() {
+        clearTable();
+        donationTable.sort(function(a, b) {
+            return new Date(b.time) - new Date(a.time);
+        });
+        let goalProgress = [];
+        for (let i in donationTable) {
+            if (!showAll && new Date(donationTable[i].time) < new Date(startTime)) {
+                continue;
+            }
+            let raised = donationTable[i].raised;
+            if (typeof goalProgress[donationTable[i].participantId] == 'undefined') {
+                goalProgress[donationTable[i].participantId] = donationTable[i].raised - donationTable[i].amount;
+            } else {
+                raised = goalProgress[donationTable[i].participantId];
+                goalProgress[donationTable[i].participantId] -= donationTable[i].amount;
+            }
+            let row = $('#donationTemplate').clone();
+            row.attr('id', donationTable[i].id);
+            row.find('.participantAvi').css('backgroundImage', 'url(' + donationTable[i].participantAvi + ')');
+            row.find('.participantName').html(donationTable[i].participantName);
+            row.find('.donorName').html(donationTable[i].donorName);
+            row.find('.amount').html(formatDollar(donationTable[i].amount));
+            row.find('.time').html(new Date(donationTable[i].time).toLocaleString('en-US'));
+            row.find('.message').html(donationTable[i].message);
+            row.find('.raised').html(formatDollar(raised));
+            row.find('.goal').html(formatDollar(donationTable[i].goal));
+            if (typeof donationTable[i].streamingChannel == 'string' && typeof donationTable[i].streamingPlatform == 'string') {
+                row.find('.streamingChannel').html(donationTable[i].streamingChannel);
+                row.find('.streamingPlatform').html(donationTable[i].streamingPlatform);
+                row.find('.streamMessage').css('display', 'block');
+            }
+            if (donationTable[i].orange) {
+                row.find('.progressMessage').css('backgroundColor', 'orange');
+            }
+            $('#donations > tbody:first-child').append(row);
         }
+    }
+
+    function downloadCsv() {
+        let csv = 'data:text/csv;charset=utf-8,';
+        csv = csv + 'Time,Amount,Participant,Donor\n';
+        donationTable.sort(function(a, b) {
+            return new Date(a.time) - new Date(b.time);
+        });
+        for (let i in donationTable) {
+            if (!showAll && new Date(donationTable[i].time) < new Date(startTime)) {
+                continue;
+            }
+            csv = csv + new Date(donationTable[i].time).toLocaleString('en-US').replace(',', '') + ',' + donationTable[i].amount + ',' + donationTable[i].participantName + ',' + donationTable[i].donorName + '\n';
+        }
+        let link = document.createElement('a');
+        link.setAttribute('href', encodeURI(csv));
+        link.setAttribute('download', 'extralife-donations.csv');
+        link.click();
+    }
+
+    function toggleShowAll() {
+        showAll = !showAll;
+        rebuildTable();
+        if (showAll) {
+            $('#toggleButton').html('Show Today');
+        } else {
+            $('#toggleButton').html('Show All');
+        }
+    }
+
+    function resetToday() {
+        startTime = new Date();
+        showAll = false;
+        rebuildTable();
     }
 
     function getParticipants() {
