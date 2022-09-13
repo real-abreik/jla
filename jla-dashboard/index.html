@@ -248,6 +248,21 @@
 
     function getDonations(first = false, offset = 0) {
         let limit = first ? 50 : 10;
+        if (first && offset == 0) {
+            let initialPercent = Math.floor((initialSum / initialGoal) * 100);
+            let totalPercent = Math.floor((totalRaised / initialGoal) * 100);
+            let todayPercent = Math.floor((raisedToday / initialGoal) * 100);
+            if ((initialPercent + todayPercent) == (totalPercent - 1)) {
+                todayPercent++;
+            }
+
+            $('#progressBarFilled').css('width', initialPercent + '%');
+            $('#progressBarPercent').html(initialPercent + '%');
+            $('#progressBarToday').css('width', todayPercent + '%');
+            $('#progressBarTodayPercent').html(todayPercent + '%');
+            $('#raisedNum').html(formatDollar(totalRaised));
+            $('#todayNum').html(formatDollar(raisedToday));
+        }
         $.ajax({
             url: "https://www.extra-life.org/api/1.3/teams/" + teamID + "/donations?limit=" + limit + "&offset=" + offset + "&_=" + new Date().getTime(),
             cache: false,
@@ -276,11 +291,11 @@
                         }
                     }
                     console.log(donation);
-                    if (!first) {
+                    if (first) {
+                        initialSum -= donation.amount;
+                    } else {
                         totalRaised += donation.amount;
                         newDonationBlink();
-                    } else {
-                        initialSum -= donation.amount;
                     }
                     raisedToday += donation.amount;
                     let participant = findParticipant(donation.participantID);
