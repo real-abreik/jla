@@ -326,7 +326,7 @@
                     }
                     if (!first) {
                         participant.sumDonations += donation.amount;
-                        increaseSumDonations(donation.participantID, amount);
+                        increaseSumDonations(donation.participantID, donation.amount);
                     }
                     console.log(participant);
                     donationTable.push({
