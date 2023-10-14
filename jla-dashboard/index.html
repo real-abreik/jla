@@ -269,10 +269,12 @@
                 todayPercent++;
             }
 
-            $('#progressBarFilled').css('width', initialPercent + '%');
-            $('#progressBarPercent').html(initialPercent + '%');
-            $('#progressBarToday').css('width', todayPercent + '%');
-            $('#progressBarTodayPercent').html(todayPercent + '%');
+            console.log(initialPercent);
+            console.log(todayPercent);
+            $('#progressBarFilled').css('width', '' + initialPercent + '%');
+            $('#progressBarPercent').html('' + initialPercent + '%');
+            $('#progressBarToday').css('width', '' + todayPercent + '%');
+            $('#progressBarTodayPercent').html('' + todayPercent + '%');
             $('#raisedNum').html(formatDollar(totalRaised));
         }
         $.ajax({
@@ -304,7 +306,7 @@
                     }
                     console.log(donation);
                     if (new Date(donation.createdDateUTC) < todayTime) {
-                        initialSum -= donation.amount;
+                        //initialSum -= donation.amount;
                     } else {
                         raisedToday += donation.amount;
                         if (!first) {
@@ -328,7 +330,7 @@
                         participant.sumDonations += donation.amount;
                         increaseSumDonations(donation.participantID, donation.amount);
                     }
-                    console.log(participant);
+                    //console.log(participant);
                     donationTable.push({
                         id: donation.donationID,
                         participantAvi: participant.avatarImageURL,
