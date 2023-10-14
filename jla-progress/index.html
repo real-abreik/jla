@@ -81,6 +81,7 @@
     <script type="text/javascript">
     const teamID = 63279;
     var currentTotal = 0;
+    var walkTotal = 2125;
 
     function formatDollar(num) {
         return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(num);
@@ -106,7 +107,7 @@
             url: "https://www.extra-life.org/api/1.3/teams/" + teamID + '?_=' + new Date().getTime(),
             dataType: "json",
             success: function(response) {
-                let totalRaised = response.sumDonations;
+                let totalRaised = response.sumDonations + walkTotal;
                 let fundraisingGoal = response.fundraisingGoal;
                 let goalPercent = Math.floor((totalRaised / fundraisingGoal) * 100);
                 if (currentTotal > 0 && currentTotal < totalRaised) {
