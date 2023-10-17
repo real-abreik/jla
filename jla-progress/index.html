@@ -23,7 +23,7 @@
             position: relative;
             background: #000;
             overflow: hidden;
-            height: 40px;
+            height: 80px;
             /*border-radius: 300px;*/
             text-align: left;
         }
@@ -38,6 +38,9 @@
         }
         #progressBarFilled {
             background-color: #c8025b;
+        }
+        #labels {
+            height: 80px;
         }
         .left {
             text-align: left;
@@ -55,7 +58,7 @@
         }
         #progressPercent, #progressAmount, #progressGoal {
             color: #fff;
-            font-size: 33px;
+            font-size: 40px;
         }
     </style>
 </head>
@@ -69,7 +72,7 @@
                 </div></td>
             </tr>
         </table>
-        <table style="position: absolute; top: 0; left: 0;">
+        <table style="position: absolute; top: 0; left: 0;" id="labels">
             <tr>
                 <td class="left"><span id="progressPercent"></span></td>
                 <td class="center"><span id="progressAmount"></span></td>
