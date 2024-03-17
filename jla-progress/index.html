@@ -138,17 +138,27 @@
             dataType: "html",
             success: function(response) {
                 let raised = $(response).find('#NewProgressAmtRaised .was-raised').html();
-                walkTotal = parseFloat(raised.replace(/[^0-9.]/g, ''));
+                raised = parseFloat(raised.replace(/[^0-9.]/g, ''));
+                if (raised > 0) {
+                    if (raised > walkTotal && walkTotal > 0) {
+                        newDonationBlink(5);
+                    }
+                    walkTotal = raised;
+                    console.log('Walk Total = ' + walkTotal);
+                }
             }
         });
     }
 
     $(document).ready(function() {
-        getWalk();
         getDonations();
+        getWalk();
         setInterval(function() {
             getDonations();
         }, 30000);
+        setInterval(function() {
+            getWalk();
+        }, 295000);
     });
     </script>
 </body>
