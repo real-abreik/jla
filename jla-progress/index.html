@@ -112,7 +112,7 @@
                 if (currentTotal === 0) {
                     console.log(response);
                 }
-                let totalRaised = response.sumDonations + walkTotal;
+                let totalRaised = parseFloat(response.sumDonations) + walkTotal;
                 let fundraisingGoal = response.fundraisingGoal;
                 let goalPercent = Math.floor((totalRaised / fundraisingGoal) * 100);
                 if (currentTotal > 0 && currentTotal < totalRaised) {
@@ -130,7 +130,21 @@
         });
     }
 
+    function getWalk() {
+        var chocwalkurl = "https://www.chocwalk.org/jla2024";
+        chocwalkurl = "https://corsproxy.io/?" + encodeURIComponent(chocwalkurl);
+        $.ajax({
+            url: chocwalkurl,
+            dataType: "html",
+            success: function(response) {
+                let raised = $(response).find('#NewProgressAmtRaised .was-raised').html();
+                walkTotal = parseFloat(raised.replace(/[^0-9.]/g, ''));
+            }
+        });
+    }
+
     $(document).ready(function() {
+        getWalk();
         getDonations();
         setInterval(function() {
             getDonations();
