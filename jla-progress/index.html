@@ -83,6 +83,7 @@
 
     <script type="text/javascript">
     const teamID = 66261;
+    const walkTeam = 'jla2024';
     var currentTotal = 0;
     var walkTotal = 0;
 
@@ -113,6 +114,7 @@
                     console.log(response);
                 }
                 let totalRaised = parseFloat(response.sumDonations) + walkTotal;
+                console.log('EL Total = ' + parseFloat(response.sumDonations));
                 let fundraisingGoal = response.fundraisingGoal;
                 let goalPercent = Math.floor((totalRaised / fundraisingGoal) * 100);
                 if (currentTotal > 0 && currentTotal < totalRaised) {
@@ -131,7 +133,7 @@
     }
 
     function getWalk() {
-        var chocwalkurl = "https://www.chocwalk.org/jla2024";
+        var chocwalkurl = "https://www.chocwalk.org/" + walkTeam + "?r=" + Math.random();
         chocwalkurl = "https://corsproxy.io/?" + encodeURIComponent(chocwalkurl);
         $.ajax({
             url: chocwalkurl,
@@ -151,14 +153,25 @@
     }
 
     $(document).ready(function() {
-        getDonations();
         getWalk();
+        getDonations();
         setInterval(function() {
-            getDonations();
+            try {
+                getDonations();
+            } catch (e) {
+                location.reload();
+            }
         }, 30000);
         setInterval(function() {
-            getWalk();
+            try {
+                getWalk();
+            } catch (e) {
+                location.reload();
+            }
         }, 295000);
+        setInterval(function() {
+            location.reload();
+        }, 36000000);
     });
     </script>
 </body>
