@@ -38,7 +38,12 @@ foreach ($el_don as $donation) {
 		echo "EL Donation Fault\n";
 		echo json_encode($state) . "\n";
 		echo "Timestamp: {$start}\n";
-		continue;
+		if (empty($state->extralife)) {
+			foreach ($el_don as $donation2) {
+				$state->extralife[] = $donation2->donationID;
+			}
+		}
+		break;
 	}
 	$state->extralife[] = $donation->donationID;
 
