@@ -2,6 +2,8 @@
 
 error_reporting(E_ALL);
 
+date_default_timezone_set('America/Chicago');
+
 $start = time();
 $elTeamId = 66261;
 $cwTeamId = 'jla2024';
@@ -124,7 +126,23 @@ if ($checkWalk) {
 
 $state->timestamp = $start;
 $redis->set($redis_key, json_encode($state));
-sleep(400);
+$sleep = 400;
+$nap = 30;
+$marathonStart = strtotime('first fri of nov');
+if (time() >= $marathonStart - 86400 && time() < $marathonStart + (86400 * 4)) {
+	$sleep = $nap;
+}
+$chocWalk = strtotime('first sun of jul');
+for ($i = 0; $i < 5; $i++) {
+	if (time() >= $chocWalk + (3600 * 5) && time() < $chocWalk + (3600 * 18)) {
+		$sleep = $nap;
+	}
+	$chocWalk += 86400 * 7;
+}
+if (date('H') >= 18 && date('H') < 23) {
+	$sleep = $nap;
+}
+sleep($sleep);
 
 function get_string_between($haystack, $start, $end) {
 	$pos = strpos($haystack, $start);
