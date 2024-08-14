@@ -1,0 +1,25 @@
+services:
+  bravo:
+    build: .
+    volumes:
+      - ./src:/home/script/src
+    command: php src/bravo.php
+    restart: always
+  jla:
+    build: .
+    volumes:
+      - ./src:/home/script/src
+    command: php src/jla.php
+    restart: always
+    depends_on:
+      redis:
+        condition: service_healthy
+  redis:
+    image: "redis:alpine"
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping | grep PONG"]
+      interval: 1s
+      timeout: 3s
+      retries: 5
