@@ -73,7 +73,7 @@
 </head>
 <body>
 
-    <div style="position: relative; zoom: 240%;">
+    <div style="position: relative;" id="progressOuter">
         <table class="progressBarContainer">
             <tr>
                 <td colspan="3"><div class="progressBar">
@@ -114,7 +114,7 @@
         }
     }
 
-    function getDonations() {
+    function getDonationSum() {
         $.ajax({
             url: "https://www.extra-life.org/api/1.3/teams/" + teamID + '?_=' + new Date().getTime(),
             dataType: "json",
@@ -165,12 +165,38 @@
         });
     }
 
+    function getParticipants() {
+        $.ajax({
+            url: "https://www.extra-life.org/api/1.3/teams/" + teamID + "/participants?limit=80&offset=0&orderBy=sumDonations%20DESC%2C%20displayName%20ASC&_=" + new Date().getTime(),
+            dataType: "json",
+            success: function(response) {
+                participants = response;
+                if (debug) {
+                    console.log('participants');
+                    console.log(participants);
+                }
+                if (!debug) {
+                    getDonations(1);
+                }
+                setInterval(function() {
+                    getDonations();
+                }, 30000);
+            }
+        });
+    }
+
+    function resizeBar() {
+        let ratio = Math.round((window.innerWidth / 670) * 100);
+        $('#progressOuter').css('zoom', '' + ratio + '%');
+    }
+
     $(document).ready(function() {
         getWalk();
-        getDonations();
+        getDonationSum();
+        resizeBar();
         setInterval(function() {
             try {
-                getDonations();
+                getDonationSum();
             } catch (e) {
                 location.reload();
             }
@@ -185,6 +211,9 @@
         setInterval(function() {
             location.reload();
         }, 3600000);
+        addEventListener('resize', (event) => {
+            resizeBar();
+        });
     });
     </script>
 </body>
