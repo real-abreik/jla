@@ -16,7 +16,7 @@
             text-align: center;
             background-image: url(jla-splash.png);
             background-size: cover;
-            background-position: 0 0;
+            background-position: 0 -100px;
             background-repeat: no-repeat;
             background-color: black;
         }
@@ -24,16 +24,16 @@
             width: 670px;
         }
         .progressBarContainer {
-            position: absolute;
-            right: 0;
-            top: 450px;
+            position: fixed;
+            left: 0;
+            bottom: 0;
         }
         .progressBar {
             width: 670px;
             position: relative;
             background: #000;
             overflow: hidden;
-            height: 80px;
+            height: 70px;
             text-align: left;
         }
         #progressBarFilled {
@@ -73,7 +73,7 @@
 </head>
 <body>
 
-    <div style="position: relative; zoom: 140%;">
+    <div style="position: relative; zoom: 240%;">
         <table class="progressBarContainer">
             <tr>
                 <td colspan="3"><div class="progressBar">
