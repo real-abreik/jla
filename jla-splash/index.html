@@ -69,9 +69,22 @@
             color: #fff;
             font-size: 38px;
         }
+        #donationDisplay {
+            display: none;
+            position: fixed;
+            background-color: white;
+            font-size: 38px;
+            padding: 10px 0 10px 0;
+            width: 670px;
+            top: 50%;
+            transform: translateY(-50%);
+            vertical-align: auto;
+        }
     </style>
 </head>
 <body>
+
+    <div id="donationDisplay">&nbsp;</div>
 
     <div style="position: relative;" id="progressOuter">
         <table class="progressBarContainer">
@@ -95,6 +108,12 @@
     const walkTeam = 'jla2024';
     var currentTotal = 0;
     var walkTotal = 0;
+
+    let participants = [];
+    let completed = [];
+    let alertStack = [];
+    let amountIntervals = [];
+    let lock = false;
 
     function formatDollar(num) {
         return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(num);
@@ -165,19 +184,123 @@
         });
     }
 
+    function checkStack() {
+        if (lock) {
+            console.log('locked');
+            console.log(alertStack);
+            return;
+        }
+        lock = true;
+        if (alertStack.length > 0) {
+            let donation = alertStack.shift();
+            console.log('rendering');
+            console.log(donation);
+            renderDonation(donation);
+        }
+        setTimeout(function() {
+            console.log('unlocking stack');
+            lock = false;
+        }, 60000);
+    }
+
+    function renderDonation(donation) {
+        let header = "New Donation Alert";
+        let speed = 100;
+        typeMessage(header);
+        setTimeout(function(donation) {
+            if (donation.amount.length < 1) {
+                hideMessage();
+                return;
+            }
+            let participant = findParticipant(donation.participantID);
+            let amount = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(donation.amount);
+            let message = '';
+            if (participant.displayName.length > 0) {
+                message = message + participant.displayName + "\n";
+            }
+            message = message + amount;
+            if (typeof donation.displayName == 'string' && donation.displayName.trim().length > 0 && donation.displayName !== "Anonymous") {
+                message = message + "\nFrom: " + donation.displayName;
+            }
+            typeMessage(message);
+            hideMessage();
+        }, (speed * (header.length + 2)) + 5000, donation);
+    }
+
+    function hideMessage() {
+        window.setTimeout(() => {
+            $('#donationDisplay').hide();
+        }, 30000);
+    }
+
+    function typeMessage(message, speed = 100) {
+        $('#donationDisplay').html('&nbsp;');
+        $('#donationDisplay').show();
+        for (let i = 0; i < message.length; i++) {
+            let char = message.charAt(i);
+            if (char == "\n") {
+                char = "<br>";
+            }
+            window.setTimeout(() => {
+                $('#donationDisplay').html($('#donationDisplay').html() + char);
+            }, speed * i);
+        }
+    }
+
+    function getDonations(first = 0) {
+        $.ajax({
+            url: "https://www.extra-life.org/api/1.3/teams/" + teamID + "/donations?limit=20&offset=0&_=" + new Date().getTime(),
+            dataType: "json",
+            success: function(response) {
+                console.log('donations');
+                console.log(response);
+                for (let i in response) {
+                    if (first) {
+                        completed.push(response[i].donationID);
+                    } else if (completed.indexOf(response[i].donationID) < 0) {
+                        alertStack.push(response[i]);
+                        completed.push(response[i].donationID);
+                    }
+                }
+                checkStack();
+            }
+        });
+    }
+
+    function findParticipant(id) {
+        for (let i in participants) {
+            if (participants[i].participantID == id) {
+                return participants[i];
+            }
+        }
+        // try updating participants, maybe they're a new signup
+        $.ajax({
+            url: "https://www.extra-life.org/api/1.3/teams/" + teamID + "/participants?limit=80&offset=0&orderBy=sumDonations%20DESC%2C%20displayName%20ASC&_=" + new Date().getTime(),
+            dataType: "json",
+            async: false,
+            success: function(response) {
+                participants = response;
+                console.log('participants');
+                console.log(participants);
+            }
+        });
+        for (let i in participants) {
+            if (participants[i].participantID == id) {
+                return participants[i];
+            }
+        }
+        return undefined;
+    }
+
     function getParticipants() {
         $.ajax({
             url: "https://www.extra-life.org/api/1.3/teams/" + teamID + "/participants?limit=80&offset=0&orderBy=sumDonations%20DESC%2C%20displayName%20ASC&_=" + new Date().getTime(),
             dataType: "json",
             success: function(response) {
                 participants = response;
-                if (debug) {
-                    console.log('participants');
-                    console.log(participants);
-                }
-                if (!debug) {
-                    getDonations(1);
-                }
+                console.log('participants');
+                console.log(participants);
+                getDonations(1);
                 setInterval(function() {
                     getDonations();
                 }, 30000);
@@ -188,6 +311,7 @@
     function resizeBar() {
         let ratio = Math.round((window.innerWidth / 670) * 100);
         $('#progressOuter').css('zoom', '' + ratio + '%');
+        $('#donationDisplay').css('zoom', '' + ratio + '%');
     }
 
     $(document).ready(function() {
@@ -214,6 +338,7 @@
         addEventListener('resize', (event) => {
             resizeBar();
         });
+        getParticipants();
     });
     </script>
 </body>
