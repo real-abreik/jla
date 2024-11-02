@@ -113,7 +113,6 @@
     let completed = [];
     let alertStack = [];
     let amountIntervals = [];
-    let lock = false;
 
     function formatDollar(num) {
         return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(num);
@@ -185,22 +184,12 @@
     }
 
     function checkStack() {
-        if (lock) {
-            console.log('locked');
-            console.log(alertStack);
-            return;
-        }
-        lock = true;
         if (alertStack.length > 0) {
             let donation = alertStack.shift();
             console.log('rendering');
             console.log(donation);
             renderDonation(donation);
         }
-        setTimeout(function() {
-            console.log('unlocking stack');
-            lock = false;
-        }, 60000);
     }
 
     function renderDonation(donation) {
@@ -303,7 +292,7 @@
                 getDonations(1);
                 setInterval(function() {
                     getDonations();
-                }, 30000);
+                }, 30100);
             }
         });
     }
