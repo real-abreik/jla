@@ -42,6 +42,9 @@
             display: inline-block;
             text-align: center;
         }
+        .highlight, .highlight .progressBarFilled {
+            background-color: yellow;
+        }
         .participantImg {
             position: absolute;
             top: 50%;
@@ -114,6 +117,15 @@
         });
     }
 
+    function findParticipant(id) {
+        for (let i in participants) {
+            if (participants[i].participantID == id) {
+                return participants[i];
+            }
+        }
+        location.reload();
+    }
+
     function getHospital(participantId) {
         let url = "https://www.extra-life.org/index.cfm?fuseaction=donorDrive.participant&participantID=" + participantId + "&r=" + Math.random();
         url = "https://corsproxy.io/?" + encodeURIComponent(url);
@@ -131,8 +143,7 @@
                     'chla': 'https://donordrivecontent.com/helpmakemiracles/images/$hospitals$/ChildrensHospitalLosAngeles-5037.jpg',
                     'cmnh': 'https://images.childrensmiraclenetwork.org/cmnhospitals/CMNHospitalslogoVert.jpg',
                     'corewell': 'https://donordrivecontent.com/helpmakemiracles/images/$hospitals$/CorewellHealthChildrens-5018.jpg',
-                    'gillette': 'https://donordrivecontent.com/helpmakemiracles/images/$hospitals$/GilletteChildrens-5068.jpg',
-
+                    'gillette': 'https://donordrivecontent.com/helpmakemiracles/images/$hospitals$/GilletteChildrens-5068.jpg'
                 };
                 Object.keys(savedImages).forEach((key) => {
                     if (savedImages[key] == hospitalImg) {
@@ -188,6 +199,7 @@
         }
         let fundraisingGoal = participant.fundraisingGoal;
         let goalPercent = Math.floor((totalRaised / fundraisingGoal) * 100);
+        $el.attr('id', 'row-' + participant.participantID);
         $el.find('.progressBarFilled').css('width', '' + goalPercent + '%');
         $el.find('.participantImg').attr('src', participant.avatarImageURL);
         $el.find('.participantName').html('' + rank + '. ' + participant.displayName);
@@ -197,10 +209,45 @@
         }
         $el.find('.participantHospitalImg').attr('src', participant.hospitalImg);
         $('#table').append($el);
+        let alertIndex = alertStack.indexOf(participant.participantID);
+        if (alertIndex >= 0) {
+            alertStack.splice(alertIndex, 1);
+            rowBlink(participant.participantID);
+        }
+    }
+
+    function rowBlink(id) {
+        $el = $('#row-' + id);
+        $el.addClass('highlight');
+        setTimeout(($el) => {
+            $el.removeClass('highlight');
+        }, 200, $el);
+        for (let i = 1; i < 5; i++) {
+            setTimeout(($el) => {
+                $el.addClass('highlight');
+            }, 400 * i, $el);
+            setTimeout(($el) => {
+                $el.removeClass('highlight');
+            }, (400 * i) + 200, $el);
+        }
     }
 
     function getParticipants() {
-
+        $.ajax({
+            url: "https://www.extra-life.org/api/1.3/teams/" + teamID + "/participants?limit=80&offset=0&orderBy=sumDonations%20DESC%2C%20displayName%20ASC",
+            cache: false,
+            dataType: "json",
+            success: function(response) {
+                response.forEach((newParticipant) => {
+                    oldParticipant = findParticipant(newParticipant.participantID);
+                    if (alertStack.indexOf(newParticipant.participantID) < 0 && newParticipant.fundraisingGoal > oldParticipant.fundraisingGoal) {
+                        alertStack.push(newParticipant.participantID);
+                        console.log(newParticipant);
+                    }
+                });
+                participants = response;
+            }
+        });
     }
 
     function initParticipants() {
