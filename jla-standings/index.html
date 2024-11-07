@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="x-ua-compatible" content="ie=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>JLA - Donation Dashboard</title>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500&display=swap" rel="stylesheet">
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
+    <style type="text/css">
+        body {
+            color: #000;
+            font-family: 'Montserrat', 'Arial', sans-serif;
+            font-size: 16px;
+            text-align: center;
+            background-size: cover;
+            background-color: black;
+        }
+        #table {
+            width: 670px;
+            position: relative;
+        }
+        .progressBar {
+            width: 670px;
+            position: relative;
+            background: #000;
+            overflow: hidden;
+            height: 96px;
+            text-align: left;
+            color: #fff;
+            font-size: 38px;
+            border: 2px solid black;
+        }
+        .progressBarFilled {
+            background-image: linear-gradient(-45deg,rgba(255,255,255,0.17) 25%,transparent 25%,transparent 50%,rgba(255,255,255,0.17) 50%,rgba(255,255,255,0.17) 75%,transparent 75%);
+            background-size: 20px 20px;
+            background-color: #c8025b;
+            overflow: hidden;
+            animation: thermo-progress-horz 1s 1 forwards ease-out;
+            height: 100%;
+            display: inline-block;
+            text-align: center;
+        }
+        .participantImg {
+            position: absolute;
+            top: 50%;
+            left: 0;
+            transform: translate(0, -50%);
+        }
+        .participantName {
+            position: absolute;
+            top: 0;
+            left: 106px;
+        }
+        .participantProgress {
+            position: absolute;
+            bottom: 0;
+            left: 106px;
+        }
+        .participantProgress.goalMet {
+            color: lightgreen;
+        }
+        .participantHospitalImg {
+            position: absolute;
+            top: 50%;
+            right: 10px;
+            transform: translate(0, -50%);
+        }
+    </style>
+</head>
+<body>
+    <div id="table" data-index="-1">
+    </div>
+
+    <script type="text/template" id="row-template">
+        <div class="progressBar">
+            <div class="progressBarFilled"></div>
+            <img class="participantHospitalImg" width="150">
+            <img class="participantImg" width="100">
+            <div class="participantName"></div>
+            <div class="participantProgress"></div>
+        </div>
+    </script>
+
+    <script type="text/javascript">
+    const teamID = 66261;
+    const rowWidth = 670;
+    const origRowHeight = 100;
+    let rowHeight = origRowHeight;
+
+    let participants = [];
+    let alertStack = [];
+
+    function formatDollar(num) {
+        return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(num);
+    }
+
+    function resize() {
+        let ratio = Math.floor(((window.innerWidth - 10) / rowWidth) * 100);
+        $('#table').css('zoom', '' + ratio + '%');
+        rowHeight = origRowHeight * (ratio / 100);
+    }
+
+    function sortParticipants() {
+        participants.sort((a, b) => {
+            if (a.sumDonations > b.sumDonations) {
+                return -1;
+            } else if (a.sumDonations < b.sumDonations) {
+                return 1;
+            } else {
+                return 0;
+            }
+        });
+    }
+
+    function getHospital(participantId) {
+        let url = "https://www.extra-life.org/index.cfm?fuseaction=donorDrive.participant&participantID=" + participantId + "&r=" + Math.random();
+        url = "https://corsproxy.io/?" + encodeURIComponent(url);
+        $.ajax({
+            url: url,
+            cache: false,
+            dataType: "html",
+            participantId: participantId,
+            success: function(response) {
+                $html = $(response);
+                let hospitalImg = $html.find('#hospitallogobox img').attr('src');
+                // replace external image if available
+                const savedImages = {
+                    'choc': 'https://donordrivecontent.com/helpmakemiracles/images/$hospitals$/CHOCHospital-5049.jpg',
+                    'chla': 'https://donordrivecontent.com/helpmakemiracles/images/$hospitals$/ChildrensHospitalLosAngeles-5037.jpg',
+                    'cmnh': 'https://images.childrensmiraclenetwork.org/cmnhospitals/CMNHospitalslogoVert.jpg',
+                    'corewell': 'https://donordrivecontent.com/helpmakemiracles/images/$hospitals$/CorewellHealthChildrens-5018.jpg',
+                    'gillette': 'https://donordrivecontent.com/helpmakemiracles/images/$hospitals$/GilletteChildrens-5068.jpg',
+
+                };
+                Object.keys(savedImages).forEach((key) => {
+                    if (savedImages[key] == hospitalImg) {
+                        hospitalImg = 'images/' + key + '.jpg';
+                    }
+                });
+                let index = participants.findIndex((participant) => participant.participantID == this.participantId);
+                participants[index].hospitalImg = hospitalImg;
+                // preload
+                let img = new Image();
+                img.src = hospitalImg;
+            }
+        })
+    }
+
+    function updateTable() {
+        let $table = $('#table');
+        $table.html('');
+        let index = parseInt($table.attr('data-index'));
+        let fit = Math.floor(window.innerHeight / rowHeight);
+        if (typeof participants[index + 1] === 'undefined') {
+            index = -1;
+        }
+        let showOne = false;
+        for (let i = index + 1; i <= index + fit; i++) {
+            let participant = participants[i];
+            if (typeof participant === 'undefined') {
+                break;
+            }
+            $table.attr('data-index', i);
+            if (participant.sumDonations < 1) {
+                // gotta get at least $1 raised to show up
+                break;
+            }
+            addRow(participant, i + 1);
+            showOne = true;
+        }
+        // if none shown (a full screen of $0), reset
+        if (!showOne) {
+            $table.attr('data-index', -1);
+            updateTable();
+        }
+    }
+
+    function addRow(participant, rank) {
+        let template = $('#row-template').html();
+        let $el = $(template);
+        let walkTotal = 0;
+        let elTotal = parseFloat(participant.sumDonations);
+        let totalRaised = walkTotal + elTotal;
+        if (totalRaised <= 0) {
+            return;
+        }
+        let fundraisingGoal = participant.fundraisingGoal;
+        let goalPercent = Math.floor((totalRaised / fundraisingGoal) * 100);
+        $el.find('.progressBarFilled').css('width', '' + goalPercent + '%');
+        $el.find('.participantImg').attr('src', participant.avatarImageURL);
+        $el.find('.participantName').html('' + rank + '. ' + participant.displayName);
+        $el.find('.participantProgress').html('' + formatDollar(participant.sumDonations) + ' of ' + formatDollar(participant.fundraisingGoal));
+        if (participant.sumDonations >= participant.fundraisingGoal) {
+            $el.find('.participantProgress').addClass('goalMet');
+        }
+        $el.find('.participantHospitalImg').attr('src', participant.hospitalImg);
+        $('#table').append($el);
+    }
+
+    function getParticipants() {
+
+    }
+
+    function initParticipants() {
+        $.ajax({
+            url: "https://www.extra-life.org/api/1.3/teams/" + teamID + "/participants?limit=80&offset=0&orderBy=sumDonations%20DESC%2C%20displayName%20ASC",
+            cache: false,
+            dataType: "json",
+            success: function(response) {
+                participants = response;
+                sortParticipants();
+                participants.forEach((participant) => {
+                    getHospital(participant.participantID);
+                    // preload avatar
+                    let img = new Image();
+                    img.src = participant.avatarImageURL;
+                });
+                console.log('participants');
+                console.log(participants);
+                setInterval(function() {
+                    getParticipants();
+                }, 60000);
+                updateTable();
+                setInterval(function() {
+                    updateTable();
+                }, 30000);
+            }
+        });
+    }
+
+    $(document).ready(function() {
+        resize();
+
+        setInterval(function() {
+            location.reload();
+        }, 3600000);
+
+        addEventListener('resize', (event) => {
+            resize();
+        });
+        initParticipants();
+    });
+    </script>
+</body>
