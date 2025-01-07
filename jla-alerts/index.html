@@ -123,7 +123,7 @@
         $('#forthekids').hide();
         let participant = findParticipant(donation.participantID);
         if (typeof participant == 'undefined') {
-            updateParticipants(donation);
+            location.reload();
             return;
         }
         $('.participant').hide();
