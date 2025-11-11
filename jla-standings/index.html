@@ -55,6 +55,8 @@
             position: absolute;
             top: 0;
             left: 106px;
+            overflow: hidden;
+            white-space: nowrap;
         }
         .participantProgress {
             position: absolute;
@@ -96,7 +98,7 @@
     let alertStack = [];
 
     function formatDollar(num) {
-        return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(num);
+        return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(Math.floor(num));
     }
 
     function resize() {
@@ -152,6 +154,11 @@
                 });
                 let index = participants.findIndex((participant) => participant.participantID == this.participantId);
                 participants[index].hospitalImg = hospitalImg;
+                // Update the image if this participant is currently displayed
+                let $row = $('#row-' + this.participantId);
+                if ($row.length) {
+                    $row.find('.participantHospitalImg').attr('src', hospitalImg).show();
+                }
                 // preload
                 let img = new Image();
                 img.src = hospitalImg;
@@ -207,8 +214,13 @@
         if (participant.sumDonations >= participant.fundraisingGoal) {
             $el.find('.participantProgress').addClass('goalMet');
         }
-        $el.find('.participantHospitalImg').attr('src', participant.hospitalImg);
+        if (participant.hospitalImg) {
+            $el.find('.participantHospitalImg').attr('src', participant.hospitalImg);
+        } else {
+            $el.find('.participantHospitalImg').hide();
+        }
         $('#table').append($el);
+
         let alertIndex = alertStack.indexOf(participant.participantID);
         if (alertIndex >= 0) {
             alertStack.splice(alertIndex, 1);
@@ -242,7 +254,10 @@
                     oldParticipant = findParticipant(newParticipant.participantID);
                     if (alertStack.indexOf(newParticipant.participantID) < 0 && newParticipant.fundraisingGoal > oldParticipant.fundraisingGoal) {
                         alertStack.push(newParticipant.participantID);
-                        console.log(newParticipant);
+                    }
+                    // Preserve hospitalImg from old participant
+                    if (oldParticipant.hospitalImg) {
+                        newParticipant.hospitalImg = oldParticipant.hospitalImg;
                     }
                 });
                 participants = response;
