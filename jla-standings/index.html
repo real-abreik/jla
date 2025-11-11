@@ -86,11 +86,29 @@
             justify-content: center;
             align-items: center;
         }
+        #donationAlert .alertImgContainer {
+            display: flex;
+            gap: 30px;
+            align-items: center;
+            margin-bottom: 30px;
+        }
         #donationAlert .alertImg {
             width: 300px;
             height: 300px;
             border-radius: 50%;
-            margin-bottom: 30px;
+        }
+        #donationAlert .alertHospitalContainer {
+            width: 300px;
+            height: 300px;
+            border-radius: 50%;
+            background: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        #donationAlert .alertHospitalImg {
+            max-width: 250px;
+            max-height: 250px;
         }
         #donationAlert .alertName {
             font-size: 72px;
@@ -159,7 +177,12 @@
     </div>
 
     <div id="donationAlert">
-        <img class="alertImg">
+        <div class="alertImgContainer">
+            <img class="alertImg">
+            <div class="alertHospitalContainer">
+                <img class="alertHospitalImg">
+            </div>
+        </div>
         <div class="alertName"></div>
         <div class="goalMetText">🎉 GOAL MET! 🎉</div>
         <div class="alertProgressBar">
@@ -347,6 +370,12 @@
         $('#table').hide();
         let $alert = $('#donationAlert');
         $alert.find('.alertImg').attr('src', alert.avatarImageURL);
+        if (alert.hospitalImg) {
+            $alert.find('.alertHospitalImg').attr('src', alert.hospitalImg);
+            $alert.find('.alertHospitalContainer').show();
+        } else {
+            $alert.find('.alertHospitalContainer').hide();
+        }
         $alert.find('.alertName').text(alert.displayName);
         if (alert.donationAmount) {
             $alert.find('.alertAmount').text(formatDollar(alert.donationAmount)).show();
@@ -374,12 +403,16 @@
             $alert.find('.goalMetText').hide();
         }
         $alert.css('display', 'flex');
+        let duration = 60000;
+        if (alert.donationAmount < 10 || (alert.donationAmount < 100 && donationQueue.length >= 5)) {
+            duration = 30000;
+        }
         setTimeout(() => {
             $alert.hide();
             $('#table').show();
             showingAlert = false;
             processQueue();
-        }, 60000);
+        }, duration);
     }
 
     function processQueue() {
@@ -397,6 +430,7 @@
                 avatarImageURL: p.avatarImageURL,
                 sumDonations: p.sumDonations,
                 fundraisingGoal: p.fundraisingGoal,
+                hospitalImg: p.hospitalImg || null,
                 donationAmount: amount,
                 donorName: 'Test Donor',
                 message: 'This is a test donation message!'
@@ -428,6 +462,7 @@
                         avatarImageURL: participant.avatarImageURL,
                         sumDonations: participant.sumDonations,
                         fundraisingGoal: participant.fundraisingGoal,
+                        hospitalImg: participant.hospitalImg || null,
                         donationAmount: donation.amount || null,
                         donorName: donation.displayName !== 'Anonymous' ? donation.displayName : null,
                         message: donation.message || null
