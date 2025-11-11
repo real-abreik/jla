@@ -170,10 +170,31 @@
             color: lightgreen;
             margin-bottom: 20px;
         }
+        #splashScreen {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #01061B;
+            z-index: 999;
+            justify-content: center;
+            align-items: center;
+        }
+        #splashScreen img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
     </style>
 </head>
 <body>
     <div id="table" data-index="-1">
+    </div>
+
+    <div id="splashScreen">
+        <img src="images/splash.webp" alt="Splash">
     </div>
 
     <div id="donationAlert">
@@ -292,16 +313,14 @@
         $table.html('');
         let index = parseInt($table.attr('data-index'));
         let fit = Math.floor(window.innerHeight / rowHeight);
-        if (typeof participants[index + 1] === 'undefined') {
-            index = -1;
-        }
         let showOne = false;
+        let lastIndex = index;
         for (let i = index + 1; i <= index + fit; i++) {
             let participant = participants[i];
             if (typeof participant === 'undefined') {
                 break;
             }
-            $table.attr('data-index', i);
+            lastIndex = i;
             if (participant.sumDonations < 1) {
                 // gotta get at least $1 raised to show up
                 break;
@@ -309,10 +328,25 @@
             addRow(participant, i + 1);
             showOne = true;
         }
+        $table.attr('data-index', lastIndex);
         // if none shown (a full screen of $0), reset
         if (!showOne) {
             $table.attr('data-index', -1);
             updateTable();
+            return;
+        }
+        // check if we just showed the last participant
+        if (lastIndex >= participants.length - 1 || (lastIndex < participants.length - 1 && participants[lastIndex + 1].sumDonations < 1)) {
+            setTimeout(() => {
+                $('#table').hide();
+                $('#splashScreen').css('display', 'flex');
+                setTimeout(() => {
+                    $('#splashScreen').hide();
+                    $('#table').show();
+                    $table.attr('data-index', -1);
+                    updateTable();
+                }, 30000);
+            }, 30000);
         }
     }
 
@@ -386,7 +420,7 @@
         $alert.find('.alertProgressFilled').css('width', percent + '%');
         $alert.find('.alertRaised').text(formatDollar(alert.sumDonations));
         $alert.find('.alertPercent').text(percent + '%');
-        $alert.find('.alertGoal').text(formatDollar(alert.fundraisingGoal));
+        $alert.find('.alertGoal').text('NEW DONATION! ' + formatDollar(alert.fundraisingGoal));
         if (alert.donorName) {
             $alert.find('.alertDonor').text('From: ' + alert.donorName).show();
         } else {
@@ -514,9 +548,7 @@
                     getParticipants();
                 }, 60000);
                 updateTable();
-                setInterval(function() {
-                    updateTable();
-                }, 30000);
+                setInterval(updateTable, 30000);
             }
         });
     }
