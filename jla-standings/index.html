@@ -87,7 +87,7 @@
     </script>
 
     <script type="text/javascript">
-    const teamID = 66261;
+    const teamID = 69021;
     const rowWidth = 670;
     const origRowHeight = 100;
     let rowHeight = origRowHeight;
@@ -202,7 +202,7 @@
         $el.attr('id', 'row-' + participant.participantID);
         $el.find('.progressBarFilled').css('width', '' + goalPercent + '%');
         $el.find('.participantImg').attr('src', participant.avatarImageURL);
-        $el.find('.participantName').html('' + rank + '. ' + participant.displayName);
+        $el.find('.participantName').html('' + participant.displayName);
         $el.find('.participantProgress').html('' + formatDollar(participant.sumDonations) + ' of ' + formatDollar(participant.fundraisingGoal));
         if (participant.sumDonations >= participant.fundraisingGoal) {
             $el.find('.participantProgress').addClass('goalMet');

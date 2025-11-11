@@ -1,0 +1,24 @@
+services:
+  jla:
+    build: .
+    restart: unless-stopped
+    container_name: jla
+    networks:
+      - proxy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=proxy"
+      - "traefik.http.routers.jla.entrypoints=http"
+      - "traefik.http.routers.jla.rule=Host(`jla.abreik.com`)"
+      - "traefik.http.middlewares.jla-https-redirect.redirectscheme.scheme=https"
+      - "traefik.http.routers.jla.middlewares=jla-https-redirect"
+      - "traefik.http.routers.jla-secure.entrypoints=https"
+      - "traefik.http.routers.jla-secure.rule=Host(`jla.abreik.com`)"
+      - "traefik.http.routers.jla-secure.tls=true"
+      - "traefik.http.routers.jla-secure.tls.certresolver=cloudflare"
+      - "traefik.http.routers.jla-secure.service=jla"
+      - "traefik.http.services.jla.loadbalancer.server.port=80"
+
+networks:
+  proxy:
+    external: true
