@@ -72,10 +72,105 @@
             right: 10px;
             transform: translate(0, -50%);
         }
+        #donationAlert {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #000;
+            color: #fff;
+            z-index: 1000;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+        #donationAlert .alertImg {
+            width: 300px;
+            height: 300px;
+            border-radius: 50%;
+            margin-bottom: 30px;
+        }
+        #donationAlert .alertName {
+            font-size: 72px;
+            margin-bottom: 20px;
+        }
+        #donationAlert .alertAmount {
+            font-size: 80px;
+            font-weight: bold;
+            color: #fff;
+            margin-bottom: 20px;
+        }
+        #donationAlert .alertProgressBar {
+            width: 800px;
+            height: 120px;
+            background: #000;
+            border: 3px solid #fff;
+            position: relative;
+            margin-bottom: 20px;
+        }
+        #donationAlert .alertProgressFilled {
+            background-image: linear-gradient(-45deg,rgba(255,255,255,0.17) 25%,transparent 25%,transparent 50%,rgba(255,255,255,0.17) 50%,rgba(255,255,255,0.17) 75%,transparent 75%);
+            background-size: 20px 20px;
+            background-color: #c8025b;
+            height: 100%;
+        }
+        #donationAlert .alertRaised {
+            position: absolute;
+            left: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 48px;
+        }
+        #donationAlert .alertPercent {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 56px;
+            font-weight: bold;
+        }
+        #donationAlert .alertGoal {
+            position: absolute;
+            right: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 48px;
+        }
+        #donationAlert .alertDonor {
+            font-size: 48px;
+            margin-bottom: 15px;
+        }
+        #donationAlert .alertMessage {
+            font-size: 36px;
+            max-width: 900px;
+            text-align: center;
+        }
+        #donationAlert .goalMetText {
+            font-size: 64px;
+            color: lightgreen;
+            margin-bottom: 20px;
+        }
     </style>
 </head>
 <body>
     <div id="table" data-index="-1">
+    </div>
+
+    <div id="donationAlert">
+        <img class="alertImg">
+        <div class="alertName"></div>
+        <div class="goalMetText">🎉 GOAL MET! 🎉</div>
+        <div class="alertProgressBar">
+            <div class="alertProgressFilled"></div>
+            <div class="alertRaised"></div>
+            <div class="alertPercent"></div>
+            <div class="alertGoal"></div>
+        </div>
+        <div class="alertAmount"></div>
+        <div class="alertDonor"></div>
+        <div class="alertMessage"></div>
     </div>
 
     <script type="text/template" id="row-template">
@@ -96,6 +191,9 @@
 
     let participants = [];
     let alertStack = [];
+    let donationQueue = [];
+    let showingAlert = false;
+    let previousDonations = {};
 
     function formatDollar(num) {
         return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(Math.floor(num));
@@ -244,6 +342,102 @@
         }
     }
 
+    function showDonationAlert(alert) {
+        showingAlert = true;
+        $('#table').hide();
+        let $alert = $('#donationAlert');
+        $alert.find('.alertImg').attr('src', alert.avatarImageURL);
+        $alert.find('.alertName').text(alert.displayName);
+        if (alert.donationAmount) {
+            $alert.find('.alertAmount').text(formatDollar(alert.donationAmount)).show();
+        } else {
+            $alert.find('.alertAmount').hide();
+        }
+        let percent = Math.min(100, Math.floor((alert.sumDonations / alert.fundraisingGoal) * 100));
+        $alert.find('.alertProgressFilled').css('width', percent + '%');
+        $alert.find('.alertRaised').text(formatDollar(alert.sumDonations));
+        $alert.find('.alertPercent').text(percent + '%');
+        $alert.find('.alertGoal').text(formatDollar(alert.fundraisingGoal));
+        if (alert.donorName) {
+            $alert.find('.alertDonor').text('From: ' + alert.donorName).show();
+        } else {
+            $alert.find('.alertDonor').hide();
+        }
+        if (alert.message) {
+            $alert.find('.alertMessage').text(alert.message).show();
+        } else {
+            $alert.find('.alertMessage').hide();
+        }
+        if (alert.sumDonations >= alert.fundraisingGoal) {
+            $alert.find('.goalMetText').show();
+        } else {
+            $alert.find('.goalMetText').hide();
+        }
+        $alert.css('display', 'flex');
+        setTimeout(() => {
+            $alert.hide();
+            $('#table').show();
+            showingAlert = false;
+            processQueue();
+        }, 60000);
+    }
+
+    function processQueue() {
+        if (!showingAlert && donationQueue.length > 0) {
+            showDonationAlert(donationQueue.shift());
+        }
+    }
+
+    window.testAlert = function(amount = 50) {
+        if (participants.length > 0) {
+            let p = participants[0];
+            donationQueue.push({
+                participantID: p.participantID,
+                displayName: p.displayName,
+                avatarImageURL: p.avatarImageURL,
+                sumDonations: p.sumDonations,
+                fundraisingGoal: p.fundraisingGoal,
+                donationAmount: amount,
+                donorName: 'Test Donor',
+                message: 'This is a test donation message!'
+            });
+            processQueue();
+        }
+    };
+
+    function checkNewDonations() {
+        participants.forEach(p => {
+            let prevAmount = previousDonations[p.participantID] || 0;
+            if (p.sumDonations > prevAmount && prevAmount > 0) {
+                getDonationDetails(p.participantID, p);
+            }
+            previousDonations[p.participantID] = p.sumDonations;
+        });
+    }
+
+    function getDonationDetails(participantId, participant) {
+        $.ajax({
+            url: "https://www.extra-life.org/api/1.3/participants/" + participantId + "/donations?limit=1&offset=0&_=" + new Date().getTime(),
+            dataType: "json",
+            success: function(response) {
+                if (response.length > 0) {
+                    let donation = response[0];
+                    donationQueue.push({
+                        participantID: participant.participantID,
+                        displayName: participant.displayName,
+                        avatarImageURL: participant.avatarImageURL,
+                        sumDonations: participant.sumDonations,
+                        fundraisingGoal: participant.fundraisingGoal,
+                        donationAmount: donation.amount || null,
+                        donorName: donation.displayName !== 'Anonymous' ? donation.displayName : null,
+                        message: donation.message || null
+                    });
+                    processQueue();
+                }
+            }
+        });
+    }
+
     function getParticipants() {
         $.ajax({
             url: "https://www.extra-life.org/api/1.3/teams/" + teamID + "/participants?limit=80&offset=0&orderBy=sumDonations%20DESC%2C%20displayName%20ASC",
@@ -255,12 +449,12 @@
                     if (alertStack.indexOf(newParticipant.participantID) < 0 && newParticipant.fundraisingGoal > oldParticipant.fundraisingGoal) {
                         alertStack.push(newParticipant.participantID);
                     }
-                    // Preserve hospitalImg from old participant
                     if (oldParticipant.hospitalImg) {
                         newParticipant.hospitalImg = oldParticipant.hospitalImg;
                     }
                 });
                 participants = response;
+                checkNewDonations();
             }
         });
     }
@@ -274,8 +468,8 @@
                 participants = response;
                 sortParticipants();
                 participants.forEach((participant) => {
+                    previousDonations[participant.participantID] = participant.sumDonations;
                     getHospital(participant.participantID);
-                    // preload avatar
                     let img = new Image();
                     img.src = participant.avatarImageURL;
                 });
