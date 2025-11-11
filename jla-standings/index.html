@@ -156,7 +156,7 @@
                 participants[index].hospitalImg = hospitalImg;
                 // Update the image if this participant is currently displayed
                 let $row = $('#row-' + this.participantId);
-                if ($row.length) {
+                if ($row.length && participants[index].displayName.length < 20) {
                     $row.find('.participantHospitalImg').attr('src', hospitalImg).show();
                 }
                 // preload
@@ -214,7 +214,7 @@
         if (participant.sumDonations >= participant.fundraisingGoal) {
             $el.find('.participantProgress').addClass('goalMet');
         }
-        if (participant.hospitalImg) {
+        if (participant.hospitalImg && participant.displayName.length < 20) {
             $el.find('.participantHospitalImg').attr('src', participant.hospitalImg);
         } else {
             $el.find('.participantHospitalImg').hide();
