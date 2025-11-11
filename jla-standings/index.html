@@ -170,6 +170,11 @@
             color: lightgreen;
             margin-bottom: 20px;
         }
+        #donationAlert .alertSubtext {
+            font-size: 48px;
+            color: #fff;
+            margin-top: 10px;
+        }
         #splashScreen {
             display: none;
             position: fixed;
@@ -213,6 +218,7 @@
             <div class="alertGoal"></div>
         </div>
         <div class="alertAmount"></div>
+        <div class="alertSubtext"></div>
         <div class="alertDonor"></div>
         <div class="alertMessage"></div>
     </div>
@@ -231,6 +237,8 @@
     const teamID = 69021;
     const rowWidth = 670;
     const origRowHeight = 100;
+    const walkTotal = 3747;
+    const allTimePrevious = 141282;
     let rowHeight = origRowHeight;
 
     let participants = [];
@@ -238,6 +246,10 @@
     let donationQueue = [];
     let showingAlert = false;
     let previousDonations = {};
+    let teamGoal = 0;
+    let teamTotal = 0;
+    let lastMilestone = 0;
+    let lastAllTimeMilestone = 0;
 
     function formatDollar(num) {
         return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(Math.floor(num));
@@ -403,35 +415,59 @@
         showingAlert = true;
         $('#table').hide();
         let $alert = $('#donationAlert');
-        $alert.find('.alertImg').attr('src', alert.avatarImageURL);
-        if (alert.hospitalImg) {
-            $alert.find('.alertHospitalImg').attr('src', alert.hospitalImg);
-            $alert.find('.alertHospitalContainer').show();
-        } else {
+        if (alert.isTeam || alert.isTeamGoal || alert.isAllTime) {
+            $alert.find('.alertImg').attr('src', alert.avatarImageURL).css('border-radius', '0');
             $alert.find('.alertHospitalContainer').hide();
+            $alert.find('.alertDonor').hide();
+            $alert.find('.alertMessage').hide();
+            if (alert.isAllTime) {
+                $alert.find('.alertProgressBar').hide();
+                $alert.find('.alertAmount').text(formatDollar(alert.sumDonations)).show();
+                $alert.find('.alertSubtext').text('raised since 2010').show();
+            } else {
+                $alert.find('.alertProgressBar').show();
+                $alert.find('.alertSubtext').hide();
+                if (alert.milestone) {
+                    $alert.find('.alertAmount').text(formatDollar(alert.milestone)).show();
+                } else {
+                    $alert.find('.alertAmount').hide();
+                }
+            }
+        } else {
+            $alert.find('.alertImg').attr('src', alert.avatarImageURL).css('border-radius', '50%');
+            $alert.find('.alertProgressBar').show();
+            $alert.find('.alertSubtext').hide();
+            if (alert.hospitalImg) {
+                $alert.find('.alertHospitalImg').attr('src', alert.hospitalImg);
+                $alert.find('.alertHospitalContainer').show();
+            } else {
+                $alert.find('.alertHospitalContainer').hide();
+            }
+            if (alert.donationAmount) {
+                $alert.find('.alertAmount').text(formatDollar(alert.donationAmount)).show();
+            } else {
+                $alert.find('.alertAmount').hide();
+            }
+            if (alert.donorName) {
+                $alert.find('.alertDonor').text('From: ' + alert.donorName).show();
+            } else {
+                $alert.find('.alertDonor').hide();
+            }
+            if (alert.message) {
+                $alert.find('.alertMessage').text(alert.message).show();
+            } else {
+                $alert.find('.alertMessage').hide();
+            }
         }
         $alert.find('.alertName').text(alert.displayName);
-        if (alert.donationAmount) {
-            $alert.find('.alertAmount').text(formatDollar(alert.donationAmount)).show();
-        } else {
-            $alert.find('.alertAmount').hide();
+        if (!alert.isAllTime) {
+            let percent = Math.min(100, Math.floor((alert.sumDonations / alert.fundraisingGoal) * 100));
+            $alert.find('.alertProgressFilled').css('width', percent + '%');
+            $alert.find('.alertRaised').text(formatDollar(alert.sumDonations));
+            $alert.find('.alertPercent').text(percent + '%');
+            $alert.find('.alertGoal').text(formatDollar(alert.fundraisingGoal));
         }
-        let percent = Math.min(100, Math.floor((alert.sumDonations / alert.fundraisingGoal) * 100));
-        $alert.find('.alertProgressFilled').css('width', percent + '%');
-        $alert.find('.alertRaised').text(formatDollar(alert.sumDonations));
-        $alert.find('.alertPercent').text(percent + '%');
-        $alert.find('.alertGoal').text('NEW DONATION! ' + formatDollar(alert.fundraisingGoal));
-        if (alert.donorName) {
-            $alert.find('.alertDonor').text('From: ' + alert.donorName).show();
-        } else {
-            $alert.find('.alertDonor').hide();
-        }
-        if (alert.message) {
-            $alert.find('.alertMessage').text(alert.message).show();
-        } else {
-            $alert.find('.alertMessage').hide();
-        }
-        if (alert.sumDonations >= alert.fundraisingGoal) {
+        if (alert.isTeamGoal || (!alert.isAllTime && alert.sumDonations >= alert.fundraisingGoal)) {
             $alert.find('.goalMetText').show();
         } else {
             $alert.find('.goalMetText').hide();
@@ -473,6 +509,41 @@
         }
     };
 
+    window.testTeamMilestone = function(milestone = 5000) {
+        donationQueue.push({
+            isTeam: true,
+            displayName: 'TEAM MILESTONE!',
+            avatarImageURL: 'images/team-logo.webp',
+            sumDonations: teamTotal + walkTotal,
+            fundraisingGoal: teamGoal,
+            milestone: milestone
+        });
+        processQueue();
+    };
+
+    window.testTeamGoal = function() {
+        donationQueue.push({
+            isTeamGoal: true,
+            displayName: 'TEAM GOAL MET!',
+            avatarImageURL: 'images/team-logo.webp',
+            sumDonations: teamGoal,
+            fundraisingGoal: teamGoal
+        });
+        processQueue();
+    };
+
+    window.testAllTimeMilestone = function(milestone = 150000) {
+        donationQueue.push({
+            isAllTime: true,
+            displayName: 'ALL-TIME MILESTONE!',
+            avatarImageURL: 'images/team-logo.webp',
+            sumDonations: teamTotal + walkTotal + allTimePrevious,
+            fundraisingGoal: teamGoal,
+            milestone: milestone
+        });
+        processQueue();
+    };
+
     function checkNewDonations() {
         participants.forEach(p => {
             let prevAmount = previousDonations[p.participantID] || 0;
@@ -503,6 +574,66 @@
                     });
                     processQueue();
                 }
+            }
+        });
+    }
+
+    function checkTeamMilestones() {
+        let total = teamTotal + walkTotal;
+        let currentMilestone = Math.floor(total / 1000) * 1000;
+        if (currentMilestone > lastMilestone && lastMilestone > 0) {
+            donationQueue.push({
+                isTeam: true,
+                displayName: 'TEAM MILESTONE!',
+                avatarImageURL: 'images/team-logo.webp',
+                sumDonations: total,
+                fundraisingGoal: teamGoal,
+                milestone: currentMilestone
+            });
+            processQueue();
+        }
+        lastMilestone = currentMilestone;
+        let allTimeTotal = total + allTimePrevious;
+        let currentAllTimeMilestone = Math.floor(allTimeTotal / 10000) * 10000;
+        if (currentAllTimeMilestone > lastAllTimeMilestone && lastAllTimeMilestone > 0) {
+            donationQueue.push({
+                isAllTime: true,
+                displayName: 'ALL-TIME MILESTONE!',
+                avatarImageURL: 'images/team-logo.webp',
+                sumDonations: allTimeTotal,
+                fundraisingGoal: teamGoal,
+                milestone: currentAllTimeMilestone
+            });
+            processQueue();
+        }
+        lastAllTimeMilestone = currentAllTimeMilestone;
+        if (total >= teamGoal && teamGoal > 0) {
+            let goalAlreadyQueued = donationQueue.some(item => item.isTeamGoal);
+            if (!goalAlreadyQueued) {
+                donationQueue.push({
+                    isTeamGoal: true,
+                    displayName: 'TEAM GOAL MET!',
+                    avatarImageURL: 'images/team-logo.webp',
+                    sumDonations: total,
+                    fundraisingGoal: teamGoal
+                });
+                processQueue();
+            }
+        }
+    }
+
+    function getTeamInfo() {
+        $.ajax({
+            url: "https://www.extra-life.org/api/1.3/teams/" + teamID + "?_=" + new Date().getTime(),
+            dataType: "json",
+            success: function(response) {
+                teamGoal = response.fundraisingGoal;
+                teamTotal = response.sumDonations;
+                if (lastMilestone === 0) {
+                    lastMilestone = Math.floor((teamTotal + walkTotal) / 1000) * 1000;
+                    lastAllTimeMilestone = Math.floor((teamTotal + walkTotal + allTimePrevious) / 10000) * 10000;
+                }
+                checkTeamMilestones();
             }
         });
     }
@@ -544,9 +675,9 @@
                 });
                 console.log('participants');
                 console.log(participants);
-                setInterval(function() {
-                    getParticipants();
-                }, 60000);
+                getTeamInfo();
+                setInterval(getParticipants, 60000);
+                setInterval(getTeamInfo, 300000);
                 updateTable();
                 setInterval(updateTable, 30000);
             }
