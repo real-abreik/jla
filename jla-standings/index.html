@@ -692,6 +692,7 @@
                     }
                 });
                 participants = response;
+                teamTotal = participants.reduce((sum, p) => sum + p.sumDonations, 0);
                 checkNewDonations();
             }
         });
