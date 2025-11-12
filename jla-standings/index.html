@@ -199,7 +199,7 @@
     </div>
 
     <div id="splashScreen">
-        <img src="images/splash.webp" alt="Splash">
+        <img src="images/splash.png" alt="Splash">
     </div>
 
     <div id="donationAlert">
@@ -250,6 +250,8 @@
     let teamTotal = 0;
     let lastMilestone = 0;
     let lastAllTimeMilestone = 0;
+    let updateTimer = null;
+    let showingSplash = false;
 
     function formatDollar(num) {
         return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(Math.floor(num));
@@ -321,6 +323,8 @@
     }
 
     function updateTable() {
+        if (showingAlert) return;
+        if (showingSplash) return;
         let $table = $('#table');
         $table.html('');
         let index = parseInt($table.attr('data-index'));
@@ -334,32 +338,58 @@
             }
             lastIndex = i;
             if (participant.sumDonations < 1) {
-                // gotta get at least $1 raised to show up
                 break;
             }
             addRow(participant, i + 1);
             showOne = true;
         }
         $table.attr('data-index', lastIndex);
-        // if none shown (a full screen of $0), reset
         if (!showOne) {
             $table.attr('data-index', -1);
             updateTable();
             return;
         }
-        // check if we just showed the last participant
         if (lastIndex >= participants.length - 1 || (lastIndex < participants.length - 1 && participants[lastIndex + 1].sumDonations < 1)) {
-            setTimeout(() => {
-                $('#table').hide();
-                $('#splashScreen').css('display', 'flex');
-                setTimeout(() => {
-                    $('#splashScreen').hide();
-                    $('#table').show();
-                    $table.attr('data-index', -1);
-                    updateTable();
-                }, 30000);
-            }, 30000);
+            scheduleNextUpdate(true);
+        } else {
+            scheduleNextUpdate(false);
         }
+    }
+
+    function scheduleNextUpdate(showSplash) {
+        clearTimeout(updateTimer);
+        updateTimer = setTimeout(() => {
+            if (showingAlert) {
+                scheduleNextUpdate(showSplash);
+                return;
+            }
+            if (showSplash) {
+                showSplashScreen();
+            } else {
+                updateTable();
+            }
+        }, 30000);
+    }
+
+    function showSplashScreen() {
+        if (showingAlert) {
+            scheduleNextUpdate(true);
+            return;
+        }
+        showingSplash = true;
+        $('#table').hide();
+        $('#splashScreen').css('display', 'flex');
+        clearTimeout(updateTimer);
+        updateTimer = setTimeout(() => {
+            if (showingAlert) {
+                updateTimer = setTimeout(() => showSplashScreen(), 1000);
+                return;
+            }
+            $('#splashScreen').hide();
+            $('#table').show().attr('data-index', -1);
+            showingSplash = false;
+            updateTable();
+        }, 30000);
     }
 
     function addRow(participant, rank) {
@@ -412,8 +442,11 @@
     }
 
     function showDonationAlert(alert) {
+        clearTimeout(updateTimer);
         showingAlert = true;
         $('#table').hide();
+        $('#splashScreen').hide();
+        showingSplash = false;
         let $alert = $('#donationAlert');
         if (alert.isTeam || alert.isTeamGoal || alert.isAllTime) {
             $alert.find('.alertImg').attr('src', alert.avatarImageURL).css('border-radius', '0');
@@ -428,7 +461,7 @@
                 $alert.find('.alertProgressBar').show();
                 $alert.find('.alertSubtext').hide();
                 if (alert.milestone) {
-                    $alert.find('.alertAmount').text(formatDollar(alert.milestone)).show();
+                    $alert.find('.alertAmount').text(formatDollar(alert.milestone) + '+').show();
                 } else {
                     $alert.find('.alertAmount').hide();
                 }
@@ -479,9 +512,13 @@
         }
         setTimeout(() => {
             $alert.hide();
-            $('#table').show();
             showingAlert = false;
-            processQueue();
+            if (donationQueue.length > 0) {
+                processQueue();
+            } else {
+                $('#table').show();
+                updateTable();
+            }
         }, duration);
     }
 
@@ -679,7 +716,6 @@
                 setInterval(getParticipants, 60000);
                 setInterval(getTeamInfo, 300000);
                 updateTable();
-                setInterval(updateTable, 30000);
             }
         });
     }
