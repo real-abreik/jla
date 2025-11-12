@@ -195,6 +195,7 @@
     </style>
 </head>
 <body>
+    <div id="hospitalPreload" style="display:none;"></div>
     <div id="table" data-index="-1">
     </div>
 
@@ -285,41 +286,41 @@
     }
 
     function getHospital(participantId) {
-        let url = "https://www.extra-life.org/index.cfm?fuseaction=donorDrive.participant&participantID=" + participantId + "&r=" + Math.random();
-        url = "https://corsproxy.io/?" + encodeURIComponent(url);
-        $.ajax({
-            url: url,
-            cache: false,
-            dataType: "html",
-            participantId: participantId,
-            success: function(response) {
-                $html = $(response);
-                let hospitalImg = $html.find('#hospitallogobox img').attr('src');
-                // replace external image if available
-                const savedImages = {
-                    'choc': 'https://donordrivecontent.com/helpmakemiracles/images/$hospitals$/CHOCHospital-5049.jpg',
-                    'chla': 'https://donordrivecontent.com/helpmakemiracles/images/$hospitals$/ChildrensHospitalLosAngeles-5037.jpg',
-                    'cmnh': 'https://images.childrensmiraclenetwork.org/cmnhospitals/CMNHospitalslogoVert.jpg',
-                    'corewell': 'https://donordrivecontent.com/helpmakemiracles/images/$hospitals$/CorewellHealthChildrens-5018.jpg',
-                    'gillette': 'https://donordrivecontent.com/helpmakemiracles/images/$hospitals$/GilletteChildrens-5068.jpg'
-                };
-                Object.keys(savedImages).forEach((key) => {
-                    if (savedImages[key] == hospitalImg) {
-                        hospitalImg = 'images/' + key + '.jpg';
-                    }
-                });
-                let index = participants.findIndex((participant) => participant.participantID == this.participantId);
-                participants[index].hospitalImg = hospitalImg;
-                // Update the image if this participant is currently displayed
-                let $row = $('#row-' + this.participantId);
-                if ($row.length && participants[index].displayName.length < 20) {
-                    $row.find('.participantHospitalImg').attr('src', hospitalImg).show();
+        return new Promise((resolve) => {
+            let url = "https://www.extra-life.org/index.cfm?fuseaction=donorDrive.participant&participantID=" + participantId + "&r=" + Math.random();
+            url = "https://corsproxy.io/?" + encodeURIComponent(url);
+            $.ajax({
+                url: url,
+                cache: false,
+                dataType: "html",
+                participantId: participantId,
+                success: function(response) {
+                    $html = $(response);
+                    let hospitalImg = $html.find('#hospitallogobox img').attr('src');
+                    const savedImages = {
+                        'choc': 'https://donordrivecontent.com/helpmakemiracles/images/$hospitals$/CHOCHospital-5049.jpg',
+                        'chla': 'https://donordrivecontent.com/helpmakemiracles/images/$hospitals$/ChildrensHospitalLosAngeles-5037.jpg',
+                        'cmnh': 'https://images.childrensmiraclenetwork.org/cmnhospitals/CMNHospitalslogoVert.jpg',
+                        'corewell': 'https://donordrivecontent.com/helpmakemiracles/images/$hospitals$/CorewellHealthChildrens-5018.jpg',
+                        'gillette': 'https://donordrivecontent.com/helpmakemiracles/images/$hospitals$/GilletteChildrens-5068.jpg'
+                    };
+                    Object.keys(savedImages).forEach((key) => {
+                        if (savedImages[key] == hospitalImg) {
+                            hospitalImg = 'images/' + key + '.jpg';
+                        }
+                    });
+                    let index = participants.findIndex((participant) => participant.participantID == this.participantId);
+                    participants[index].hospitalImg = hospitalImg;
+                    let img = new Image();
+                    img.onload = () => resolve();
+                    img.onerror = () => resolve();
+                    img.src = hospitalImg;
+                },
+                error: function() {
+                    resolve();
                 }
-                // preload
-                let img = new Image();
-                img.src = hospitalImg;
-            }
-        })
+            });
+        });
     }
 
     function updateTable() {
@@ -414,7 +415,7 @@
         if (participant.hospitalImg && participant.displayName.length < 20) {
             $el.find('.participantHospitalImg').attr('src', participant.hospitalImg);
         } else {
-            $el.find('.participantHospitalImg').hide();
+            $el.find('.participantHospitalImg').remove();
         }
         $('#table').append($el);
 
@@ -704,18 +705,21 @@
             success: function(response) {
                 participants = response;
                 sortParticipants();
+                let hospitalPromises = [];
                 participants.forEach((participant) => {
                     previousDonations[participant.participantID] = participant.sumDonations;
-                    getHospital(participant.participantID);
+                    hospitalPromises.push(getHospital(participant.participantID));
                     let img = new Image();
                     img.src = participant.avatarImageURL;
                 });
-                console.log('participants');
-                console.log(participants);
-                getTeamInfo();
-                setInterval(getParticipants, 60000);
-                setInterval(getTeamInfo, 300000);
-                updateTable();
+                Promise.all(hospitalPromises).then(() => {
+                    console.log('participants');
+                    console.log(participants);
+                    getTeamInfo();
+                    setInterval(getParticipants, 60000);
+                    setInterval(getTeamInfo, 300000);
+                    updateTable();
+                });
             }
         });
     }
