@@ -36,7 +36,7 @@
             width: 670px;
             height: 48px;
             background: #000;
-            color: #fff;
+            color: #ff8c00;
             border: 2px solid black;
             position: relative;
         }
@@ -67,6 +67,7 @@
             width: 95%;
             height: 90%;
             background: #000;
+            color: #fff;
             border: 2px solid #fff;
             border-radius: 10px;
             position: relative;
@@ -112,7 +113,12 @@
             gap: 12px;
         }
         .footer img {
-            height: 44px;
+            position: absolute;
+            height: 88px;
+            bottom: 0;
+            left: calc(50% + 110px);
+            z-index: 1001;
+            filter: brightness(0) saturate(100%) invert(56%) sepia(89%) saturate(1651%) hue-rotate(360deg) brightness(102%) contrast(101%);
         }
         .progressBarFilled {
             background-image: linear-gradient(-45deg,rgba(255,255,255,0.17) 25%,transparent 25%,transparent 50%,rgba(255,255,255,0.17) 50%,rgba(255,255,255,0.17) 75%,transparent 75%);
