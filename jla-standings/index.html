@@ -32,6 +32,88 @@
             font-size: 38px;
             border: 2px solid black;
         }
+        .header, .footer {
+            width: 670px;
+            height: 48px;
+            background: #000;
+            color: #fff;
+            border: 2px solid black;
+            position: relative;
+        }
+        .header {
+            display: flex;
+            align-items: center;
+        }
+        .headerLeft {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding-left: 8px;
+            width: 50%;
+        }
+        .headerLeft img {
+            height: 36px;
+        }
+        .headerLeft span {
+            font-size: 18px;
+            font-weight: bold;
+        }
+        .headerRight {
+            width: 50%;
+            height: 100%;
+            position: relative;
+        }
+        .teamProgressBar {
+            width: 95%;
+            height: 90%;
+            background: #000;
+            border: 2px solid #fff;
+            border-radius: 10px;
+            position: relative;
+            overflow: hidden;
+        }
+        .teamProgressFilled {
+            background-image: linear-gradient(-45deg,rgba(255,255,255,0.17) 25%,transparent 25%,transparent 50%,rgba(255,255,255,0.17) 50%,rgba(255,255,255,0.17) 75%,transparent 75%);
+            background-size: 20px 20px;
+            background-color: #c8025b;
+            height: 100%;
+        }
+        .teamRaised {
+            position: absolute;
+            left: 8px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 16px;
+            z-index: 1;
+        }
+        .teamPercent {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 18px;
+            font-weight: bold;
+            z-index: 1;
+        }
+        .teamGoalText {
+            position: absolute;
+            right: 8px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 16px;
+            z-index: 1;
+        }
+        .footer {
+            position: fixed;
+            bottom: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+        }
+        .footer img {
+            height: 44px;
+        }
         .progressBarFilled {
             background-image: linear-gradient(-45deg,rgba(255,255,255,0.17) 25%,transparent 25%,transparent 50%,rgba(255,255,255,0.17) 50%,rgba(255,255,255,0.17) 75%,transparent 75%);
             background-size: 20px 20px;
@@ -196,7 +278,26 @@
 </head>
 <body>
     <div id="hospitalPreload" style="display:none;"></div>
+    <div id="topRow" class="header" style="display:none;">
+        <div class="headerLeft">
+            <img src="images/team-logo.webp" alt="Team Logo">
+            <span>Game Day 2025</span>
+        </div>
+        <div class="headerRight">
+            <div class="teamProgressBar">
+                <div class="teamProgressFilled"></div>
+                <div class="teamRaised"></div>
+                <div class="teamPercent"></div>
+                <div class="teamGoalText"></div>
+            </div>
+        </div>
+    </div>
     <div id="table" data-index="-1">
+    </div>
+    <div id="bottomRow" class="footer" style="display:none;">
+        <span>Scan to join or donate</span>
+        <img src="images/jla2025.svg" alt="QR Code">
+    </div>
     </div>
 
     <div id="splashScreen">
@@ -260,7 +361,7 @@
 
     function resize() {
         let ratio = Math.floor(((window.innerWidth - 10) / rowWidth) * 100);
-        $('#table').css('zoom', '' + ratio + '%');
+        $('#topRow, #table, #bottomRow').css('zoom', '' + ratio + '%');
         rowHeight = origRowHeight * (ratio / 100);
     }
 
@@ -328,8 +429,9 @@
         if (showingSplash) return;
         let $table = $('#table');
         $table.html('');
+        $('#topRow').show();
         let index = parseInt($table.attr('data-index'));
-        let fit = Math.floor(window.innerHeight / rowHeight);
+        let fit = Math.floor((window.innerHeight - rowHeight) / rowHeight);
         let showOne = false;
         let lastIndex = index;
         for (let i = index + 1; i <= index + fit; i++) {
@@ -344,6 +446,7 @@
             addRow(participant, i + 1);
             showOne = true;
         }
+        $('#bottomRow').show();
         $table.attr('data-index', lastIndex);
         if (!showOne) {
             $table.attr('data-index', -1);
@@ -378,7 +481,7 @@
             return;
         }
         showingSplash = true;
-        $('#table').hide();
+        $('#topRow, #table, #bottomRow').hide();
         $('#splashScreen').css('display', 'flex');
         clearTimeout(updateTimer);
         updateTimer = setTimeout(() => {
@@ -445,7 +548,7 @@
     function showDonationAlert(alert) {
         clearTimeout(updateTimer);
         showingAlert = true;
-        $('#table').hide();
+        $('#topRow, #table, #bottomRow').hide();
         $('#splashScreen').hide();
         showingSplash = false;
         let $alert = $('#donationAlert');
@@ -660,6 +763,15 @@
         }
     }
 
+    function updateTeamProgress() {
+        let total = teamTotal + walkTotal;
+        let percent = Math.min(100, Math.floor((total / teamGoal) * 100));
+        $('.teamProgressFilled').css('width', percent + '%');
+        $('.teamRaised').text(formatDollar(total));
+        $('.teamPercent').text(percent + '%');
+        $('.teamGoalText').text(formatDollar(teamGoal));
+    }
+
     function getTeamInfo() {
         $.ajax({
             url: "https://www.extra-life.org/api/1.3/teams/" + teamID + "?_=" + new Date().getTime(),
@@ -671,6 +783,7 @@
                     lastMilestone = Math.floor((teamTotal + walkTotal) / 1000) * 1000;
                     lastAllTimeMilestone = Math.floor((teamTotal + walkTotal + allTimePrevious) / 10000) * 10000;
                 }
+                updateTeamProgress();
                 checkTeamMilestones();
             }
         });
@@ -693,6 +806,7 @@
                 });
                 participants = response;
                 teamTotal = participants.reduce((sum, p) => sum + p.sumDonations, 0);
+                updateTeamProgress();
                 checkTeamMilestones();
                 checkNewDonations();
             }
